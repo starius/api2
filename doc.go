@@ -72,5 +72,20 @@ Note that you don't have to pass a real service object to GetRoutes
 on client side. You can pass nil, it is sufficient to pass all needed
 information about request and response types in the routes table, that
 is used by client to find a proper route.
+
+You can make GetRoutes accepting an interface instead of a concrete
+Service type. In this case you can not get method handlers by s.Bar,
+because this code panics if s is nil interface. As a workaround api2
+provides function Method(service pointer, methodName) which you can use:
+
+	type Service interface {
+		Bar(ctx context.Context, req *BarRequest) (*BarResponse, error)
+	}
+
+	func GetRoutes(s Service) []api2.Route {
+		return []api2.Route{
+			{http.MethodPost, "/v1/foo/bar", api2.Method(&s, "Bar"), &api2.JsonTransport{}},
+		}
+	}
 */
 package api2

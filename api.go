@@ -71,3 +71,19 @@ func validateHandler(handlerType reflect.Type) {
 }
 
 var DefaultTransport = &JsonTransport{}
+
+func Method(servicePtr interface{}, methodName string) interface{} {
+	serviceValue := reflect.ValueOf(servicePtr).Elem()
+	if serviceValue.IsNil() {
+		// Service is nil interface.
+		serviceType := serviceValue.Type()
+		method, has := serviceType.MethodByName(methodName)
+		if !has {
+			panic(fmt.Sprintf("Service type %s has no method %s", serviceType.Name(), methodName))
+		}
+		return reflect.New(method.Type).Elem().Interface()
+	} else {
+		// Service is a real type.
+		return serviceValue.MethodByName(methodName).Interface()
+	}
+}
