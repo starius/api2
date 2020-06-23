@@ -1,5 +1,5 @@
 # api2
-![godoc](https://godoc.org/https://github.com/starius/api2?status.svg)
+[![godoc](https://godoc.org/https://github.com/starius/api2?status.svg)](https://godoc.org/github.com/starius/api2)
 
 Go library to make HTTP API clients and servers.
 
