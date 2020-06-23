@@ -4,6 +4,10 @@ Go library to make HTTP API clients and servers.
 
 Package api2 provides types and functions used to define interfaces of
 client-server API and facilitate creation of server and client for it.
+You define a common structure (GetRoutes, see below) in Go and `api2` makes
+both HTTP client and HTTP server for you. You do not have to do JSON
+encoding-decoding yourself and to duplicate schema information (data types
+and path) in client.
 
 ## How to use this package.
 
