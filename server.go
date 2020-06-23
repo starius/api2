@@ -42,6 +42,10 @@ func BindRoutes(mux *http.ServeMux, routes []Route, opts ...Option) {
 }
 
 func newHTTPHandler(h interface{}, t Transport, errorf func(format string, args ...interface{})) http.HandlerFunc {
+	if m, ok := h.(*interfaceMethod); ok {
+		h = m.Func()
+	}
+
 	handlerValue := reflect.ValueOf(h)
 	handlerType := handlerValue.Type()
 	validateHandler(handlerType)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path"
 	"reflect"
 )
 
@@ -72,18 +73,40 @@ func validateHandler(handlerType reflect.Type) {
 
 var DefaultTransport = &JsonTransport{}
 
-func Method(servicePtr interface{}, methodName string) interface{} {
-	serviceValue := reflect.ValueOf(servicePtr).Elem()
-	if serviceValue.IsNil() {
+type interfaceMethod struct {
+	serviceValue reflect.Value
+	methodName   string
+}
+
+func (m *interfaceMethod) Func() interface{} {
+	if m.serviceValue.IsNil() {
 		// Service is nil interface.
-		serviceType := serviceValue.Type()
-		method, has := serviceType.MethodByName(methodName)
+		serviceType := m.serviceValue.Type()
+		method, has := serviceType.MethodByName(m.methodName)
 		if !has {
-			panic(fmt.Sprintf("Service type %s has no method %s", serviceType.Name(), methodName))
+			panic(fmt.Sprintf("Service type %s has no method %s", serviceType.Name(), m.methodName))
 		}
 		return reflect.New(method.Type).Elem().Interface()
 	} else {
 		// Service is a real type.
-		return serviceValue.MethodByName(methodName).Interface()
+		return m.serviceValue.MethodByName(m.methodName).Interface()
 	}
+}
+
+func (m *interfaceMethod) FuncInfo() (pkgFull, pkgName, structName, method string) {
+	serviceType := m.serviceValue.Type()
+	pkgFull = serviceType.PkgPath()
+	pkgName = path.Base(pkgFull)
+	structName = serviceType.Name()
+	method = m.methodName
+	return
+}
+
+func Method(servicePtr interface{}, methodName string) interface{} {
+	m := interfaceMethod{
+		serviceValue: reflect.ValueOf(servicePtr).Elem(),
+		methodName:   methodName,
+	}
+	_ = m.Func() // To panic asap.
+	return &m
 }

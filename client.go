@@ -38,7 +38,11 @@ func NewClient(routes []Route, baseURL string, opts ...Option) *Client {
 
 	routeMap := make(map[signature]Route, len(routes))
 	for _, route := range routes {
-		handlerType := reflect.TypeOf(route.Handler)
+		handler := route.Handler
+		if m, ok := handler.(*interfaceMethod); ok {
+			handler = m.Func()
+		}
+		handlerType := reflect.TypeOf(handler)
 		validateHandler(handlerType)
 		key := signature{
 			request:  handlerType.In(1),
