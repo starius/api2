@@ -76,7 +76,7 @@ Now let's create the client:
 ```go
 // Client.
 routes := GetRoutes(nil)
-client := NewClient(routes, "http://127.0.0.1:8080")
+client := api2.NewClient(routes, "http://127.0.0.1:8080")
 barRes := &BarResponse{}
 err := client.Call(context.Background(), barRes, &BarRequest{
 	...
