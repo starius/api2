@@ -108,3 +108,13 @@ func GetRoutes(s Service) []api2.Route {
 	}
 }
 ```
+
+You can find an example in directory [example](./example).
+To build and run it:
+
+```
+$ go get github.com/starius/api2/example/...
+$ server &
+$ client
+test
+```
