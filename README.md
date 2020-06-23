@@ -1,4 +1,5 @@
 # api2
+![godoc](https://godoc.org/https://github.com/starius/api2?status.svg)
 
 Go library to make HTTP API clients and servers.
 
