@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/starius/api2"
 )
 
 func TestAPI(t *testing.T) {
@@ -39,17 +41,17 @@ func TestAPI(t *testing.T) {
 		return &PostResponse{}, nil
 	}
 
-	routes := []Route{
-		{http.MethodGet, "/number", getHandler, &JsonTransport{}},
-		{http.MethodPost, "/number", postHandler, &JsonTransport{}},
+	routes := []api2.Route{
+		{http.MethodGet, "/number", getHandler, &api2.JsonTransport{}},
+		{http.MethodPost, "/number", postHandler, &api2.JsonTransport{}},
 	}
 
 	mux := http.NewServeMux()
-	BindRoutes(mux, routes)
+	api2.BindRoutes(mux, routes)
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	client := NewClient(routes, server.URL)
+	client := api2.NewClient(routes, server.URL)
 
 	getRes := &GetResponse{}
 	err := client.Call(context.Background(), getRes, &GetRequest{
