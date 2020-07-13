@@ -47,7 +47,7 @@ func GetRoutes(s *Foo) []api2.Route {
 	return []api2.Route{
 		{
 			Method:    http.MethodPost,
-			URL:       "/v1/foo/bar",
+			Path:      "/v1/foo/bar",
 			Handler:   s.Bar,
 			Transport: &api2.JsonTransport{},
 		},

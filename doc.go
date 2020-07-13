@@ -32,7 +32,7 @@ Now let's write the function that generates the table of routes:
 		return []api2.Route{
 			{
 				Method:    http.MethodPost,
-				URL:       "/v1/foo/bar",
+				Path:      "/v1/foo/bar",
 				Handler:   s.Bar,
 				Transport: &api2.JsonTransport{},
 			},
