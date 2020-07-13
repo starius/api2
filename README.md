@@ -105,7 +105,7 @@ type Service interface {
 
 func GetRoutes(s Service) []api2.Route {
 	return []api2.Route{
-		{http.MethodPost, "/v1/foo/bar", api2.Method(&s, "Bar"), &api2.JsonTransport{}},
+		{Method: http.MethodPost, Path: "/v1/foo/bar", Handler: api2.Method(&s, "Bar"), Transport: &api2.JsonTransport{}},
 	}
 }
 ```
