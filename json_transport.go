@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 )
 
 // JsonTransport implements interface Transport for JSON encoding of requests and responses.
@@ -32,13 +33,19 @@ func (h *JsonTransport) DecodeRequest(ctx context.Context, r *http.Request, req 
 	if h.RequestDecoder != nil {
 		return h.RequestDecoder(ctx, r, req)
 	}
-	err := json.NewDecoder(r.Body).Decode(req)
 
 	// Calling FormValue before parsing JSON "eats" r.Body if Content-Type is
 	// application/x-www-form-urlencoded. This happens in curl for me.
 	ctx = context.WithValue(ctx, humanType{}, r.FormValue("human") != "")
 
-	return ctx, err
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return ctx, err
+	}
+	if err := parseQueryAndHeader(req, r.URL.Query(), r.Header); err != nil {
+		return ctx, err
+	}
+
+	return ctx, nil
 }
 
 func (h *JsonTransport) EncodeResponse(ctx context.Context, w http.ResponseWriter, res interface{}) error {
@@ -46,6 +53,9 @@ func (h *JsonTransport) EncodeResponse(ctx context.Context, w http.ResponseWrite
 		return h.ResponseEncoder(ctx, w, res)
 	}
 
+	if err := writeQueryAndHeader(res, nil, w.Header()); err != nil {
+		return err
+	}
 	encoder := json.NewEncoder(w)
 	if human := ctx.Value(humanType{}); human != nil && human.(bool) {
 		encoder.SetIndent("", "  ")
@@ -78,19 +88,27 @@ func (h *JsonTransport) EncodeError(ctx context.Context, w http.ResponseWriter, 
 	return jsonError(w, code, "%v", err)
 }
 
-func (h *JsonTransport) EncodeRequest(ctx context.Context, method, url string, req interface{}) (*http.Request, error) {
+func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string, req interface{}) (*http.Request, error) {
 	if h.RequestEncoder != nil {
-		return h.RequestEncoder(ctx, method, url, req)
+		return h.RequestEncoder(ctx, method, urlStr, req)
 	}
 
 	requestJSON, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
-	request, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(requestJSON))
+	request, err := http.NewRequestWithContext(ctx, method, urlStr, bytes.NewReader(requestJSON))
 	if err != nil {
 		return nil, err
 	}
+	query, err := url.ParseQuery(request.URL.RawQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query part of URL: %w", err)
+	}
+	if err := writeQueryAndHeader(req, query, request.Header); err != nil {
+		return nil, err
+	}
+	request.URL.RawQuery = query.Encode()
 
 	request.Header.Set("Content-Type", "application/json")
 	return request, nil
@@ -100,7 +118,15 @@ func (h *JsonTransport) DecodeResponse(ctx context.Context, res *http.Response, 
 	if h.ResponseDecoder != nil {
 		return h.ResponseDecoder(ctx, res, response)
 	}
-	return json.NewDecoder(res.Body).Decode(response)
+
+	if err := json.NewDecoder(res.Body).Decode(response); err != nil {
+		return err
+	}
+	if err := parseQueryAndHeader(response, nil, res.Header); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (h *JsonTransport) DecodeError(ctx context.Context, res *http.Response) error {

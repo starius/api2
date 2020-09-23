@@ -59,6 +59,7 @@ func validateHandler(handlerType reflect.Type) {
 	if handlerType.In(1).Elem().Kind() != reflect.Struct {
 		panic(fmt.Sprintf("handler's second argument must be a pointer to a struct, got %s", handlerType.In(1)))
 	}
+	validateRequestResponse(handlerType.In(1).Elem(), true)
 
 	if handlerType.NumOut() != 2 {
 		panic(fmt.Sprintf("handler must have 2 results, got %d", handlerType.NumOut()))
@@ -66,8 +67,27 @@ func validateHandler(handlerType reflect.Type) {
 	if handlerType.Out(0).Elem().Kind() != reflect.Struct {
 		panic(fmt.Sprintf("handler's first result must be a pointer to a struct, got %s", handlerType.Out(0)))
 	}
+	validateRequestResponse(handlerType.Out(0).Elem(), false)
 	if handlerType.Out(1) != errorType {
 		panic(fmt.Sprintf("handler's second argument must be error, got %s", handlerType.Out(1)))
+	}
+}
+
+func validateRequestResponse(structType reflect.Type, request bool) {
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		jsonTag := field.Tag.Get("json")
+		hasQuery := field.Tag.Get("query") != ""
+		hasHeader := field.Tag.Get("header") != ""
+		if hasQuery && hasHeader {
+			panic(fmt.Sprintf("field %s of struct %s has both query and header tags", field.Name, structType.Name()))
+		}
+		if (hasQuery || hasHeader) && jsonTag != "-" {
+			panic(fmt.Sprintf("field %s of struct %s has query or header tag but its json tag is not set to '-'", field.Name, structType.Name()))
+		}
+		if hasQuery && !request {
+			panic(fmt.Sprintf("field %s of struct %s: hasQuery=%v, but query can only be used in requests", field.Name, structType.Name(), hasQuery))
+		}
 	}
 }
 

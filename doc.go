@@ -15,16 +15,40 @@ Let's define a service Foo with method Bar.
 	}
 
 	type BarRequest struct {
-		...
+		// These fields are stored in JSON format in body.
+		Name string `json:"name"`
+
+		// These fields are GET parameters.
+		UserID int `query:"user_id" json:"-"`
+
+		// These fields are headers.
+		FileHash string `header:"file_hash" json:"-"`
+
+		// These fields are skipped.
+		SkippedField int `json:"-"`
 	}
 
 	type BarResponse struct {
-		...
+		// These fields are stored in JSON format in body.
+		FileSize int `json:"file_size" json:"-"`
+
+		// These fields are headers.
+		FileHash string `header:"file_hash" json:"-"`
+
+		// These fields are skipped.
+		SkippedField int `json:"-"`
 	}
 
 	func (s *Foo) Bar(ctx context.Context, req *BarRequest) (*BarResponse, error) {
 		...
 	}
+
+A field must not have query and header tags at the same time.
+If it has any of them, its json tag must be set to "-".
+Fields in query and header parts are encoded and decoded with
+fmt.Sprintf and fmt.Sscanf. Strings are not decoded with fmt.Sscanf,
+but passed as is. Types implementing encoding.TextMarshaler and
+encoding.TextUnmarshaler are encoded and decoded using it.
 
 Now let's write the function that generates the table of routes:
 
