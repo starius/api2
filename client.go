@@ -81,9 +81,14 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 		panic(fmt.Sprintf("No registered method with signature %v %v.", key.request, key.response))
 	}
 
+	t := route.Transport
+	if t == nil {
+		t = DefaultTransport
+	}
+
 	url := c.baseURL + route.Path
 
-	req, err := route.Transport.EncodeRequest(ctx, route.Method, url, request)
+	req, err := t.EncodeRequest(ctx, route.Method, url, request)
 	if err != nil {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
@@ -100,8 +105,8 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 
 	// Handle all 2xx responses as success.
 	if 200 <= res.StatusCode && res.StatusCode < 300 {
-		return route.Transport.DecodeResponse(req.Context(), res, response)
+		return t.DecodeResponse(req.Context(), res, response)
 	} else {
-		return route.Transport.DecodeError(req.Context(), res)
+		return t.DecodeError(req.Context(), res)
 	}
 }

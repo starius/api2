@@ -28,17 +28,40 @@ type Foo struct {
 }
 
 type BarRequest struct {
-	...
+	// These fields are stored in JSON format in body.
+	Name string `json:"name"`
+
+	// These fields are GET parameters.
+	UserID int `query:"user_id"`
+
+	// These fields are headers.
+	FileHash string `header:"file_hash"`
+
+	// These fields are skipped.
+	SkippedField int `json:"-"`
 }
 
 type BarResponse struct {
-	...
+	// These fields are stored in JSON format in body.
+	FileSize int `json:"file_size"`
+
+	// These fields are headers.
+	FileHash string `header:"file_hash"`
+
+	// These fields are skipped.
+	SkippedField int `json:"-"`
 }
 
 func (s *Foo) Bar(ctx context.Context, req *BarRequest) (*BarResponse, error) {
 	...
 }
 ```
+
+A field must not have more than one of tags: `json`, `query`, `header`.
+Fields in query and header parts are encoded and decoded with
+`fmt.Sprintf` and `fmt.Sscanf`. Strings are not decoded with `fmt.Sscanf`,
+but passed as is. Types implementing `encoding.TextMarshaler` and
+`encoding.TextUnmarshaler` are encoded and decoded using it.
 
 Now let's write the function that generates the table of routes:
 
@@ -57,6 +80,9 @@ func GetRoutes(s *Foo) []api2.Route {
 
 You can add multiple routes with the same path, but in this case their
 HTTP methods must be different so that they can be distinguished.
+
+If `Transport` is not set, `DefaultTransport` is used which is defined as
+`&api2.JsonTransport{}`.
 
 In the server you need a real instance of service Foo to pass to GetRoutes.
 Then just bind the routes to http.ServeMux and run the server:
