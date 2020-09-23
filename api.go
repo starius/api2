@@ -59,6 +59,7 @@ func validateHandler(handlerType reflect.Type) {
 	if handlerType.In(1).Elem().Kind() != reflect.Struct {
 		panic(fmt.Sprintf("handler's second argument must be a pointer to a struct, got %s", handlerType.In(1)))
 	}
+	validateRequestResponse(handlerType.In(1).Elem(), true)
 
 	if handlerType.NumOut() != 2 {
 		panic(fmt.Sprintf("handler must have 2 results, got %d", handlerType.NumOut()))
@@ -66,8 +67,30 @@ func validateHandler(handlerType reflect.Type) {
 	if handlerType.Out(0).Elem().Kind() != reflect.Struct {
 		panic(fmt.Sprintf("handler's first result must be a pointer to a struct, got %s", handlerType.Out(0)))
 	}
+	validateRequestResponse(handlerType.Out(0).Elem(), false)
 	if handlerType.Out(1) != errorType {
 		panic(fmt.Sprintf("handler's second argument must be error, got %s", handlerType.Out(1)))
+	}
+}
+
+func validateRequestResponse(structType reflect.Type, request bool) {
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		hasJson := field.Tag.Get("json") != ""
+		hasQuery := field.Tag.Get("query") != ""
+		hasHeader := field.Tag.Get("header") != ""
+		sum := 0
+		for _, v := range []bool{hasJson, hasQuery, hasHeader} {
+			if v {
+				sum++
+			}
+		}
+		if sum > 1 {
+			panic(fmt.Sprintf("field %s of struct %s: hasJson=%v, hasQuery=%v, hasHeader=%v, want at most one to be true", field.Name, structType.Name(), hasJson, hasQuery, hasHeader))
+		}
+		if hasQuery && !request {
+			panic(fmt.Sprintf("field %s of struct %s: hasQuery=%v, but query can only be used in requests", field.Name, structType.Name(), hasQuery))
+		}
 	}
 }
 
