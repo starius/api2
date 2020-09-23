@@ -42,8 +42,8 @@ func TestAPI(t *testing.T) {
 	}
 
 	routes := []api2.Route{
-		{Method: http.MethodGet, Path: "/number", Handler: getHandler, Transport: &api2.JsonTransport{}},
-		{Method: http.MethodPost, Path: "/number", Handler: postHandler, Transport: &api2.JsonTransport{}},
+		{Method: http.MethodGet, Path: "/number", Handler: getHandler},
+		{Method: http.MethodPost, Path: "/number", Handler: postHandler},
 	}
 
 	mux := http.NewServeMux()

@@ -22,7 +22,8 @@ type Route struct {
 	// Request and Response are custom structures, unique to this route.
 	Handler interface{}
 
-	// The transport used in this route.
+	// The transport used in this route. If Transport is not set, DefaultTransport
+	// is used.
 	Transport Transport
 }
 

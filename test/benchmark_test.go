@@ -34,7 +34,7 @@ func BenchmarkAPI(b *testing.B) {
 	}
 
 	routes := []api2.Route{
-		{Method: http.MethodPost, Path: "/number", Handler: postHandler, Transport: &api2.JsonTransport{}},
+		{Method: http.MethodPost, Path: "/number", Handler: postHandler},
 	}
 
 	mux := http.NewServeMux()

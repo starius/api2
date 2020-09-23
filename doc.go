@@ -65,6 +65,9 @@ Now let's write the function that generates the table of routes:
 You can add multiple routes with the same path, but in this case their
 HTTP methods must be different so that they can be distinguished.
 
+If Transport is not set, DefaultTransport is used which is defined as
+&api2.JsonTransport{}.
+
 In the server you need a real instance of service Foo to pass to GetRoutes.
 Then just bind the routes to http.ServeMux and run the server:
 
