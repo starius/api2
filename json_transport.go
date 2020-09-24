@@ -155,9 +155,9 @@ func (h *JsonTransport) DecodeError(ctx context.Context, res *http.Response) err
 	}
 	var msg errorMessage
 	if err := json.Unmarshal(buf, &msg); err != nil {
-		return fmt.Errorf("failed to decode error message %s: %v", string(buf), err)
+		return fmt.Errorf("failed to decode error message %s, HTTP status %s: %v", string(buf), res.Status, err)
 	}
-	return fmt.Errorf("API returned error: %v", msg.Error)
+	return fmt.Errorf("API returned error with HTTP status %s: %v", res.Status, msg.Error)
 }
 
 type errorMessage struct {
