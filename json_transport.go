@@ -118,6 +118,7 @@ func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string
 	}
 	body := bytes.NewReader(requestJSON)
 	snapshot := *body
+	request.ContentLength = int64(len(requestJSON))
 	request.Body = ioutil.NopCloser(body)
 	request.GetBody = func() (io.ReadCloser, error) {
 		r := snapshot
