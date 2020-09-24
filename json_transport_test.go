@@ -20,7 +20,7 @@ func (c CustomType) MarshalText() (text []byte, err error) {
 func (c *CustomType) UnmarshalText(text []byte) error {
 	for _, b := range text {
 		if b != '|' {
-			return fmt.Errorf("found unknown characted: %v", b)
+			return fmt.Errorf("found unknown character: %v", b)
 		}
 	}
 	*c = CustomType(len(text))
