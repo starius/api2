@@ -28,6 +28,10 @@ func (c *CustomType) UnmarshalText(text []byte) error {
 }
 
 func TestQueryAndHeader(t *testing.T) {
+	type Anon struct {
+		Foo string `json:"foo"`
+	}
+
 	cases := []struct {
 		objPtr      interface{}
 		query       bool
@@ -282,6 +286,17 @@ func TestQueryAndHeader(t *testing.T) {
 			},
 			wantJson: `{}`,
 		},
+
+		{
+			objPtr: &struct {
+				Anon
+			}{
+				Anon: Anon{
+					Foo: "aaa",
+				},
+			},
+			wantJson: `{"foo":"aaa"}`,
+		},
 	}
 
 	for i, tc := range cases {
@@ -312,11 +327,8 @@ func TestQueryAndHeader(t *testing.T) {
 		}
 
 		objPtr2 := reflect.New(reflect.TypeOf(tc.objPtr).Elem()).Interface()
-		if err := json.Unmarshal(jsonBytes, objPtr2); err != nil {
-			t.Errorf("case %d: json.Unmarshal failed: %v", i, err)
-		}
-		if err := parseQueryAndHeader(objPtr2, query, header); err != nil {
-			t.Errorf("case %d: parseQueryAndHeader failed: %v", i, err)
+		if err := parseRequest(objPtr2, bytes.NewReader(jsonBytes), query, header); err != nil {
+			t.Errorf("case %d: parseRequest failed: %v", i, err)
 		}
 
 		if !tc.dontCompare && !reflect.DeepEqual(objPtr2, tc.objPtr) {
