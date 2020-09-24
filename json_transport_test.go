@@ -228,6 +228,22 @@ func TestQueryAndHeader(t *testing.T) {
 		},
 		{
 			objPtr: &struct {
+				Foo string
+			}{
+				Foo: "aaa",
+			},
+			wantJson: `{"Foo":"aaa"}`,
+		},
+		{
+			objPtr: &struct {
+				Foo string `json:""`
+			}{
+				Foo: "aaa",
+			},
+			wantJson: `{"Foo":"aaa"}`,
+		},
+		{
+			objPtr: &struct {
 				Foo string `json:",omitempty"`
 			}{
 				Foo: "",
