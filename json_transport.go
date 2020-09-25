@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"strings"
+	"sync"
 )
 
 // JsonTransport implements interface Transport for JSON encoding of requests and responses.
@@ -42,10 +42,7 @@ func (h *JsonTransport) DecodeRequest(ctx context.Context, r *http.Request, req 
 	// application/x-www-form-urlencoded. This happens in curl for me.
 	ctx = context.WithValue(ctx, humanType{}, r.FormValue("human") != "")
 
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		return ctx, err
-	}
-	if err := parseQueryAndHeader(req, r.URL.Query(), r.Header); err != nil {
+	if err := parseRequest(req, r.Body, r.URL.Query(), r.Header); err != nil {
 		return ctx, err
 	}
 
@@ -118,6 +115,7 @@ func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string
 	}
 	body := bytes.NewReader(requestJSON)
 	snapshot := *body
+	request.ContentLength = int64(len(requestJSON))
 	request.Body = ioutil.NopCloser(body)
 	request.GetBody = func() (io.ReadCloser, error) {
 		r := snapshot
@@ -133,10 +131,7 @@ func (h *JsonTransport) DecodeResponse(ctx context.Context, res *http.Response, 
 		return h.ResponseDecoder(ctx, res, response)
 	}
 
-	if err := json.NewDecoder(res.Body).Decode(response); err != nil {
-		return err
-	}
-	if err := parseQueryAndHeader(response, nil, res.Header); err != nil {
+	if err := parseRequest(response, res.Body, nil, res.Header); err != nil {
 		return err
 	}
 
@@ -154,9 +149,9 @@ func (h *JsonTransport) DecodeError(ctx context.Context, res *http.Response) err
 	}
 	var msg errorMessage
 	if err := json.Unmarshal(buf, &msg); err != nil {
-		return fmt.Errorf("failed to decode error message %s: %v", string(buf), err)
+		return fmt.Errorf("failed to decode error message %s, HTTP status %s: %v", string(buf), res.Status, err)
 	}
-	return fmt.Errorf("API returned error: %v", msg.Error)
+	return fmt.Errorf("API returned error with HTTP status %s: %v", res.Status, msg.Error)
 }
 
 type errorMessage struct {
@@ -170,100 +165,161 @@ func jsonError(w http.ResponseWriter, code int, format string, args ...interface
 	return json.NewEncoder(w).Encode(errorMessage{errmsg})
 }
 
-func writeQueryAndHeader(objPtr interface{}, query url.Values, header http.Header) (interface{}, error) {
-	objType := reflect.TypeOf(objPtr).Elem()
-	objValue := reflect.ValueOf(objPtr).Elem()
-	forJson := make(map[string]interface{}, objType.NumField())
-	for i := 0; i < objType.NumField(); i++ {
-		field := objType.Field(i)
-
-		headerKey := field.Tag.Get("header")
-		queryKey := field.Tag.Get("query")
-		if headerKey == "" && (query == nil || queryKey == "") {
-			jsonTag := field.Tag.Get("json")
-			if jsonTag == "-" {
-				continue
-			}
-			parts := strings.SplitN(jsonTag, ",", 2)
-			jsonKey := parts[0]
-			if jsonKey == "" {
-				jsonKey = field.Name
-			}
-			fieldValue := objValue.Field(i)
-			if len(parts) == 2 && parts[1] == "omitempty" {
-				if fieldValue.IsZero() {
-					continue
-				}
-				kind := fieldValue.Kind()
-				if kind == reflect.Array || kind == reflect.Map || kind == reflect.Slice || kind == reflect.String {
-					if fieldValue.Len() == 0 {
-						continue
-					}
-				}
-			}
-			forJson[jsonKey] = fieldValue.Interface()
-			continue
-		}
-
-		fieldObj := objValue.Field(i).Interface()
-		value := ""
-		if marshaler, ok := fieldObj.(encoding.TextMarshaler); ok {
-			valueBytes, err := marshaler.MarshalText()
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
-			}
-			value = string(valueBytes)
-		} else {
-			value = fmt.Sprintf("%v", fieldObj)
-		}
-
-		if headerKey != "" {
-			header.Set(headerKey, value)
-		} else if query != nil && queryKey != "" {
-			query.Set(queryKey, value)
-		}
-	}
-	return forJson, nil
+type strMapping struct {
+	Field int
+	Key   string
 }
 
-func parseQueryAndHeader(objPtr interface{}, query url.Values, header http.Header) error {
-	objType := reflect.TypeOf(objPtr).Elem()
-	objValue := reflect.ValueOf(objPtr).Elem()
+type intMapping struct {
+	OrigField int
+	JsonField int
+}
+
+type preparedType struct {
+	QueryMapping  []strMapping
+	HeaderMapping []strMapping
+	JsonMapping   []intMapping
+	TypeForJson   reflect.Type
+}
+
+func prepare(objType reflect.Type) *preparedType {
+	p := &preparedType{}
+	jsonFields := make([]reflect.StructField, 0, objType.NumField())
 	for i := 0; i < objType.NumField(); i++ {
 		field := objType.Field(i)
-
-		value := ""
-		resetField := false
-		if headerKey := field.Tag.Get("header"); headerKey != "" {
-			value = header.Get(headerKey)
-			resetField = true
-		} else if query != nil {
-			if queryKey := field.Tag.Get("query"); queryKey != "" {
-				value = query.Get(queryKey)
-				resetField = true
-			}
-		}
-		if value == "" {
-			if resetField {
-				// Reset just in case it was provided in JSON.
-				fieldValue := objValue.Field(i)
-				fieldValue.Set(reflect.Zero(fieldValue.Type()))
-			}
-			continue
-		}
-
-		var err error
-		fieldPtr := objValue.Field(i).Addr().Interface()
-		if unmarshaler, ok := fieldPtr.(encoding.TextUnmarshaler); ok {
-			err = unmarshaler.UnmarshalText([]byte(value))
-		} else if fieldStrPtr, ok := fieldPtr.(*string); ok {
-			*fieldStrPtr = value
+		queryKey := field.Tag.Get("query")
+		headerKey := field.Tag.Get("header")
+		if queryKey != "" {
+			p.QueryMapping = append(p.QueryMapping, strMapping{
+				Field: i,
+				Key:   queryKey,
+			})
+		} else if headerKey != "" {
+			p.HeaderMapping = append(p.HeaderMapping, strMapping{
+				Field: i,
+				Key:   headerKey,
+			})
 		} else {
-			_, err = fmt.Sscanf(value, "%v", fieldPtr)
-		}
-		if err != nil {
-			return fmt.Errorf("failed to parse value %q for field %s: %w", value, field.Name, err)
+			// Add to JSON.
+			p.JsonMapping = append(p.JsonMapping, intMapping{
+				OrigField: i,
+				JsonField: len(jsonFields),
+			})
+			jsonFields = append(jsonFields, field)
 		}
 	}
+	p.TypeForJson = reflect.StructOf(jsonFields)
+	return p
+}
+
+var prepared sync.Map
+
+func toString(obj interface{}) (string, error) {
+	if marshaler, ok := obj.(encoding.TextMarshaler); ok {
+		valueBytes, err := marshaler.MarshalText()
+		if err != nil {
+			return "", err
+		}
+		return string(valueBytes), nil
+	} else {
+		return fmt.Sprintf("%v", obj), nil
+	}
+}
+
+func fromString(objPtr interface{}, value string) error {
+	if unmarshaler, ok := objPtr.(encoding.TextUnmarshaler); ok {
+		return unmarshaler.UnmarshalText([]byte(value))
+	} else if fieldStrPtr, ok := objPtr.(*string); ok {
+		*fieldStrPtr = value
+		return nil
+	} else {
+		_, err := fmt.Sscanf(value, "%v", objPtr)
+		return err
+	}
+}
+
+func writeQueryAndHeader(objPtr interface{}, query url.Values, header http.Header) (interface{}, error) {
+	objType := reflect.TypeOf(objPtr).Elem()
+	p0, has := prepared.Load(objType)
+	if !has {
+		p0 = prepare(objType)
+		prepared.Store(objType, p0)
+	}
+	p := p0.(*preparedType)
+
+	if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 {
+		// No query and header. Returning the original object.
+		return objPtr, nil
+	}
+
+	objValue := reflect.ValueOf(objPtr).Elem()
+	forJson := reflect.New(p.TypeForJson).Elem()
+	for _, m := range p.JsonMapping {
+		forJson.Field(m.JsonField).Set(objValue.Field(m.OrigField))
+	}
+	for _, m := range p.QueryMapping {
+		value, err := toString(objValue.Field(m.Field).Interface())
+		if err != nil {
+			field := objType.Field(m.Field)
+			return nil, fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
+		}
+		query.Set(m.Key, value)
+	}
+	for _, m := range p.HeaderMapping {
+		value, err := toString(objValue.Field(m.Field).Interface())
+		if err != nil {
+			field := objType.Field(m.Field)
+			return nil, fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
+		}
+		header.Set(m.Key, value)
+	}
+
+	return forJson.Addr().Interface(), nil
+}
+
+func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, header http.Header) error {
+	objType := reflect.TypeOf(objPtr).Elem()
+	p0, has := prepared.Load(objType)
+	if !has {
+		p0 = prepare(objType)
+		prepared.Store(objType, p0)
+	}
+	p := p0.(*preparedType)
+
+	if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 {
+		// No query and header. Parse JSON into the original structure.
+		return json.NewDecoder(jsonReader).Decode(objPtr)
+	}
+
+	objValue := reflect.ValueOf(objPtr).Elem()
+
+	// Parse JSON into a temporary struct and copy fields into the original struct.
+	jsonPtrValue := reflect.New(p.TypeForJson)
+	if err := json.NewDecoder(jsonReader).Decode(jsonPtrValue.Interface()); err != nil {
+		return err
+	}
+	jsonValue := jsonPtrValue.Elem()
+	for _, m := range p.JsonMapping {
+		objValue.Field(m.OrigField).Set(jsonValue.Field(m.JsonField))
+	}
+
+	for _, m := range p.QueryMapping {
+		fieldPtr := objValue.Field(m.Field).Addr().Interface()
+		value := query.Get(m.Key)
+		if err := fromString(fieldPtr, value); err != nil {
+			field := objType.Field(m.Field)
+			return fmt.Errorf("failed to parse value %q from query key %s for field %s: %w", value, m.Key, field.Name, err)
+		}
+	}
+
+	for _, m := range p.HeaderMapping {
+		fieldPtr := objValue.Field(m.Field).Addr().Interface()
+		value := header.Get(m.Key)
+		if err := fromString(fieldPtr, value); err != nil {
+			field := objType.Field(m.Field)
+			return fmt.Errorf("failed to parse value %q from header key %s for field %s: %w", value, m.Key, field.Name, err)
+		}
+	}
+
 	return nil
 }
