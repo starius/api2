@@ -293,14 +293,20 @@ func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, he
 
 	objValue := reflect.ValueOf(objPtr).Elem()
 
-	// Parse JSON into a temporary struct and copy fields into the original struct.
-	jsonPtrValue := reflect.New(p.TypeForJson)
-	if err := json.NewDecoder(jsonReader).Decode(jsonPtrValue.Interface()); err != nil {
-		return err
-	}
-	jsonValue := jsonPtrValue.Elem()
-	for _, m := range p.JsonMapping {
-		objValue.Field(m.OrigField).Set(jsonValue.Field(m.JsonField))
+	if len(p.QueryMapping)+len(p.HeaderMapping) == objType.NumField() {
+		// All the fields are query or header. No fields for JSON.
+		// In this case JSON parsing is skipped.
+		io.Copy(ioutil.Discard, jsonReader)
+	} else {
+		// Parse JSON into a temporary struct and copy fields into the original struct.
+		jsonPtrValue := reflect.New(p.TypeForJson)
+		if err := json.NewDecoder(jsonReader).Decode(jsonPtrValue.Interface()); err != nil {
+			return err
+		}
+		jsonValue := jsonPtrValue.Elem()
+		for _, m := range p.JsonMapping {
+			objValue.Field(m.OrigField).Set(jsonValue.Field(m.JsonField))
+		}
 	}
 
 	for _, m := range p.QueryMapping {

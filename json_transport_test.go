@@ -36,6 +36,7 @@ func TestQueryAndHeader(t *testing.T) {
 		objPtr      interface{}
 		query       bool
 		wantJson    string
+		replaceBody string
 		wantQuery   url.Values
 		wantHeader  http.Header
 		dontCompare bool // For cases of non-nil empty slice or map.
@@ -102,6 +103,24 @@ func TestQueryAndHeader(t *testing.T) {
 			},
 			query:    true,
 			wantJson: `{}`,
+			wantQuery: map[string][]string{
+				"bar": []string{"100"},
+			},
+			wantHeader: map[string][]string{
+				"Baz": []string{"true"},
+			},
+		},
+		{
+			objPtr: &struct {
+				Bar int  `query:"bar"`
+				Baz bool `header:"baz"`
+			}{
+				Bar: 100,
+				Baz: true,
+			},
+			query:       true,
+			wantJson:    `{}`,
+			replaceBody: " ",
 			wantQuery: map[string][]string{
 				"bar": []string{"100"},
 			},
@@ -324,6 +343,10 @@ func TestQueryAndHeader(t *testing.T) {
 		}
 		if tc.wantHeader != nil && !reflect.DeepEqual(header, tc.wantHeader) {
 			t.Errorf("case %d: header does not match, got %#v, want %#v", i, header, tc.wantHeader)
+		}
+
+		if tc.replaceBody != "" {
+			jsonBytes = []byte(tc.replaceBody)
 		}
 
 		objPtr2 := reflect.New(reflect.TypeOf(tc.objPtr).Elem()).Interface()
