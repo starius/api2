@@ -128,6 +128,11 @@ func TestQueryAndHeader(t *testing.T) {
 				"Baz": []string{"true"},
 			},
 		},
+		{
+			objPtr:      &struct{}{},
+			wantJson:    `{}`,
+			replaceBody: " ",
+		},
 
 		{
 			objPtr: &struct {
