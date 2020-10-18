@@ -313,7 +313,6 @@ func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, he
 	} else if len(p.QueryMapping)+len(p.HeaderMapping) == objType.NumField() {
 		// All the fields are query or header. No fields for JSON.
 		// In this case JSON parsing is skipped.
-		io.Copy(ioutil.Discard, jsonReader)
 	} else if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 {
 		// No query and header. Parse JSON into the original structure.
 		if err := json.NewDecoder(jsonReader).Decode(objPtr); err != nil {
@@ -331,6 +330,9 @@ func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, he
 			objValue.Field(m.OrigField).Set(jsonValue.Field(m.JsonField))
 		}
 	}
+
+	// Drain the reader in case we skipped parsing or something is left.
+	io.Copy(ioutil.Discard, jsonReader)
 
 	for _, m := range p.QueryMapping {
 		fieldPtr := objValue.Field(m.Field).Addr().Interface()
