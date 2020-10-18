@@ -54,6 +54,8 @@ func (h *JsonTransport) EncodeResponse(ctx context.Context, w http.ResponseWrite
 		return h.ResponseEncoder(ctx, w, res)
 	}
 
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
 	forJson, err := writeQueryAndHeader(res, nil, w.Header())
 	if err != nil {
 		return err
@@ -122,7 +124,8 @@ func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string
 		return ioutil.NopCloser(&r), nil
 	}
 
-	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	request.Header.Set("Accept", "application/json")
 	return request, nil
 }
 
