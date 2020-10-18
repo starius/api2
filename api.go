@@ -75,23 +75,37 @@ func validateHandler(handlerType reflect.Type) {
 }
 
 func validateRequestResponse(structType reflect.Type, request bool) {
+	var jsonFields, bodyFields []string
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
 		hasJson := field.Tag.Get("json") != ""
+		hasUseAsBody := field.Tag.Get("use_as_body") == "true"
 		hasQuery := field.Tag.Get("query") != ""
 		hasHeader := field.Tag.Get("header") != ""
 		sum := 0
-		for _, v := range []bool{hasJson, hasQuery, hasHeader} {
+		for _, v := range []bool{hasJson, hasUseAsBody, hasQuery, hasHeader} {
 			if v {
 				sum++
 			}
 		}
 		if sum > 1 {
-			panic(fmt.Sprintf("field %s of struct %s: hasJson=%v, hasQuery=%v, hasHeader=%v, want at most one to be true", field.Name, structType.Name(), hasJson, hasQuery, hasHeader))
+			panic(fmt.Sprintf("field %s of struct %s: hasJson=%v, hasUseAsBody=%v, hasQuery=%v, hasHeader=%v, want at most one to be true", field.Name, structType.Name(), hasJson, hasUseAsBody, hasQuery, hasHeader))
 		}
 		if hasQuery && !request {
 			panic(fmt.Sprintf("field %s of struct %s: hasQuery=%v, but query can only be used in requests", field.Name, structType.Name(), hasQuery))
 		}
+		if hasJson {
+			jsonFields = append(jsonFields, field.Name)
+		}
+		if hasUseAsBody {
+			bodyFields = append(bodyFields, field.Name)
+		}
+	}
+	if len(bodyFields) > 1 {
+		panic(fmt.Sprintf("struct %s has more than 1 use_as_body field: %v", structType.Name(), bodyFields))
+	}
+	if len(bodyFields) > 0 && len(jsonFields) > 0 {
+		panic(fmt.Sprintf("struct %s has both json (%v) and use_as_body (%v) fields", structType.Name(), jsonFields, bodyFields))
 	}
 }
 
