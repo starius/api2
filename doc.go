@@ -114,5 +114,10 @@ provides function Method(service pointer, methodName) which you can use:
 			{Method: http.MethodPost, Path: "/v1/foo/bar", Handler: api2.Method(&s, "Bar"), Transport: &api2.JsonTransport{}},
 		}
 	}
+
+If you have function GetRoutes in package foo as above you can generate static client
+for it in file client.go located near the file in which GetRoutes is defined:
+
+	api2.GenerateClient(foo.GetRoutes)
 */
 package api2

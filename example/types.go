@@ -1,5 +1,7 @@
 package example
 
+//go:generate go run ./gen/...
+
 import (
 	"context"
 	"net/http"
