@@ -22,6 +22,15 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
+func (c *Client) Hello(ctx context.Context, req *HelloRequest) (res *HelloResponse, err error) {
+	res = &HelloResponse{}
+	err = c.api2client.Call(ctx, res, req)
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
 func (c *Client) Echo(ctx context.Context, req *EchoRequest) (res *EchoResponse, err error) {
 	res = &EchoResponse{}
 	err = c.api2client.Call(ctx, res, req)

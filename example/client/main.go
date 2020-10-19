@@ -10,8 +10,15 @@ import (
 func main() {
 	client := example.NewClient("http://127.0.0.1:8080")
 
-	echoRes, err := client.Echo(context.Background(), &example.EchoRequest{
-		Text: "test",
+	ctx := context.Background()
+
+	helloRes, err := client.Hello(ctx, &example.HelloRequest{
+		Key: "secret password",
+	})
+
+	echoRes, err := client.Echo(ctx, &example.EchoRequest{
+		Session: helloRes.Session,
+		Text:    "test",
 	})
 	if err != nil {
 		panic(err)
