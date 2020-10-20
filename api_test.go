@@ -1,6 +1,7 @@
 package api2
 
 import (
+	"context"
 	"reflect"
 	"testing"
 )
@@ -93,5 +94,85 @@ func TestValidateRequestResponse(t *testing.T) {
 		if gotPanic != tc.wantPanic {
 			t.Errorf("case %d: gotPanic=%v, wantPanic=%v, message=%v", i, gotPanic, tc.wantPanic, message)
 		}
+	}
+}
+
+type HelloRequest struct {
+}
+
+type HelloResponse struct {
+}
+
+type ServiceStruct struct {
+}
+
+func (s *ServiceStruct) Hello(ctx context.Context, req *HelloRequest) (*HelloResponse, error) {
+	return &HelloResponse{}, nil
+}
+
+type ServiceInterface interface {
+	Hello(ctx context.Context, req *HelloRequest) (*HelloResponse, error)
+}
+
+func TestMethod(t *testing.T) {
+	var servicePtrNil *ServiceStruct
+	var serviceInterfaceNil ServiceInterface
+
+	servicePtr := &ServiceStruct{}
+	serviceInterface := ServiceInterface(&ServiceStruct{})
+
+	cases := []struct {
+		method                                   interface{}
+		pkgFull, pkgName, structName, methodName string
+	}{
+		{
+			method:     Method(&servicePtr, "Hello"),
+			pkgFull:    "github.com/starius/api2",
+			pkgName:    "api2",
+			structName: "ServiceStruct",
+			methodName: "Hello",
+		},
+		{
+			method:     Method(&servicePtrNil, "Hello"),
+			pkgFull:    "github.com/starius/api2",
+			pkgName:    "api2",
+			structName: "ServiceStruct",
+			methodName: "Hello",
+		},
+		{
+			method:     Method(&serviceInterface, "Hello"),
+			pkgFull:    "github.com/starius/api2",
+			pkgName:    "api2",
+			structName: "ServiceInterface",
+			methodName: "Hello",
+		},
+		{
+			method:     Method(&serviceInterfaceNil, "Hello"),
+			pkgFull:    "github.com/starius/api2",
+			pkgName:    "api2",
+			structName: "ServiceInterface",
+			methodName: "Hello",
+		},
+	}
+
+	for i, tc := range cases {
+		method := tc.method.(*interfaceMethod)
+
+		pkgFull, pkgName, structName, methodName := method.FuncInfo()
+		if pkgFull != tc.pkgFull {
+			t.Errorf("case %d: for pkgFull = %q, want %q", i, pkgFull, tc.pkgFull)
+		}
+		if pkgName != tc.pkgName {
+			t.Errorf("case %d: for pkgName = %q, want %q", i, pkgName, tc.pkgName)
+		}
+		if structName != tc.structName {
+			t.Errorf("case %d: for structName = %q, want %q", i, structName, tc.structName)
+		}
+		if methodName != tc.methodName {
+			t.Errorf("case %d: for method = %q, want %q", i, methodName, tc.methodName)
+		}
+
+		f := method.Func()
+		validateHandler(reflect.TypeOf(f))
 	}
 }

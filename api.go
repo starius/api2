@@ -103,7 +103,7 @@ type interfaceMethod struct {
 }
 
 func (m *interfaceMethod) Func() interface{} {
-	if m.serviceValue.IsNil() {
+	if m.serviceValue.Kind() == reflect.Interface && m.serviceValue.IsNil() {
 		// Service is nil interface.
 		serviceType := m.serviceValue.Type()
 		method, has := serviceType.MethodByName(m.methodName)
@@ -119,6 +119,9 @@ func (m *interfaceMethod) Func() interface{} {
 
 func (m *interfaceMethod) FuncInfo() (pkgFull, pkgName, structName, method string) {
 	serviceType := m.serviceValue.Type()
+	if serviceType.Kind() == reflect.Ptr {
+		serviceType = serviceType.Elem()
+	}
 	pkgFull = serviceType.PkgPath()
 	pkgName = path.Base(pkgFull)
 	structName = serviceType.Name()
@@ -130,6 +133,9 @@ func Method(servicePtr interface{}, methodName string) interface{} {
 	m := interfaceMethod{
 		serviceValue: reflect.ValueOf(servicePtr).Elem(),
 		methodName:   methodName,
+	}
+	if m.serviceValue.Kind() == reflect.Struct {
+		panic("pass a pointer to an interface or a pointer to a pointer to a struct")
 	}
 	_ = m.Func() // To panic asap.
 	return &m
