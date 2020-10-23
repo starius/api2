@@ -137,6 +137,13 @@ func GetRoutes(s Service) []api2.Route {
 }
 ```
 
+If you have function `GetRoutes` in package `foo` as above you can generate static client
+for it in file client.go located near the file in which `GetRoutes` is defined:
+
+```go
+api2.GenerateClient(foo.GetRoutes)
+```
+
 You can find an example in directory [example](./example).
 To build and run it:
 
@@ -145,4 +152,11 @@ $ go get github.com/starius/api2/example/...
 $ server &
 $ client
 test
+```
+
+Code generation code is located in directory [example/gen](./example/gen).
+To regenerate file [client.go](./example/client.go) run:
+
+```
+$ go generate github.com/starius/api2/example
 ```
