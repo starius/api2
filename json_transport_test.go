@@ -32,6 +32,12 @@ func TestQueryAndHeader(t *testing.T) {
 		Foo string `json:"foo"`
 	}
 
+	type Person struct {
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+		Age       int    `json:"age"`
+	}
+
 	cases := []struct {
 		objPtr      interface{}
 		query       bool
@@ -320,6 +326,113 @@ func TestQueryAndHeader(t *testing.T) {
 				},
 			},
 			wantJson: `{"foo":"aaa"}`,
+		},
+
+		{
+			objPtr: &struct {
+				Body []int `use_as_body:"true"`
+			}{
+				Body: []int{1, 2, 3},
+			},
+			wantJson: `[1,2,3]`,
+		},
+		{
+			objPtr: &struct {
+				Body map[string]int `use_as_body:"true"`
+			}{
+				Body: map[string]int{
+					"key1": 100,
+					"key2": 200,
+				},
+			},
+			wantJson: `{"key1":100,"key2":200}`,
+		},
+		{
+			objPtr: &struct {
+				Body       map[string]int `use_as_body:"true"`
+				ExtraField string
+			}{
+				Body: map[string]int{
+					"key1": 100,
+					"key2": 200,
+				},
+			},
+			wantJson: `{"key1":100,"key2":200}`,
+		},
+		{
+			objPtr: &struct {
+				Body []int `use_as_body:"true"`
+				Bar  int   `query:"bar"`
+				Baz  bool  `header:"baz"`
+			}{
+				Body: []int{1, 2, 3},
+				Bar:  500,
+				Baz:  true,
+			},
+			wantJson: `[1,2,3]`,
+			query:    true,
+		},
+		{
+			objPtr: &struct {
+				Body       []int `use_as_body:"true"`
+				Bar        int   `query:"bar"`
+				Baz        bool  `header:"baz"`
+				ExtraField string
+			}{
+				Body: []int{1, 2, 3},
+				Bar:  500,
+				Baz:  true,
+			},
+			wantJson: `[1,2,3]`,
+			query:    true,
+		},
+		{
+			objPtr: &struct {
+				Body []Person `use_as_body:"true"`
+			}{
+				Body: []Person{
+					{FirstName: "Ivan", LastName: "Ivanov", Age: 55},
+					{FirstName: "Petr", LastName: "Petrov", Age: 75},
+				},
+			},
+			wantJson: `[{"first_name":"Ivan","last_name":"Ivanov","age":55},{"first_name":"Petr","last_name":"Petrov","age":75}]`,
+		},
+		{
+			objPtr: &struct {
+				Body []Person `use_as_body:"true"`
+				Bar  int      `query:"bar"`
+				Baz  bool     `header:"baz"`
+			}{
+				Body: []Person{
+					{FirstName: "Ivan", LastName: "Ivanov", Age: 55},
+					{FirstName: "Petr", LastName: "Petrov", Age: 75},
+				},
+				Bar: 500,
+				Baz: true,
+			},
+			wantJson: `[{"first_name":"Ivan","last_name":"Ivanov","age":55},{"first_name":"Petr","last_name":"Petrov","age":75}]`,
+			query:    true,
+		},
+		{
+			objPtr: &struct {
+				Body map[string]Person `use_as_body:"true"`
+			}{
+				Body: map[string]Person{
+					"ivan.ivanov": {FirstName: "Ivan", LastName: "Ivanov", Age: 55},
+				},
+			},
+			wantJson: `{"ivan.ivanov":{"first_name":"Ivan","last_name":"Ivanov","age":55}}`,
+		},
+		{
+			objPtr: &struct {
+				Body       map[string]Person `use_as_body:"true"`
+				ExtraField string
+			}{
+				Body: map[string]Person{
+					"ivan.ivanov": {FirstName: "Ivan", LastName: "Ivanov", Age: 55},
+				},
+			},
+			wantJson: `{"ivan.ivanov":{"first_name":"Ivan","last_name":"Ivanov","age":55}}`,
 		},
 	}
 

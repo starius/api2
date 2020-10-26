@@ -54,6 +54,8 @@ func (h *JsonTransport) EncodeResponse(ctx context.Context, w http.ResponseWrite
 		return h.ResponseEncoder(ctx, w, res)
 	}
 
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
 	forJson, err := writeQueryAndHeader(res, nil, w.Header())
 	if err != nil {
 		return err
@@ -122,7 +124,8 @@ func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string
 		return ioutil.NopCloser(&r), nil
 	}
 
-	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	request.Header.Set("Accept", "application/json")
 	return request, nil
 }
 
@@ -180,15 +183,19 @@ type preparedType struct {
 	HeaderMapping []strMapping
 	JsonMapping   []intMapping
 	TypeForJson   reflect.Type
+	BodyField     int
 }
 
+const noBodyField = -1
+
 func prepare(objType reflect.Type) *preparedType {
-	p := &preparedType{}
+	p := &preparedType{BodyField: noBodyField}
 	jsonFields := make([]reflect.StructField, 0, objType.NumField())
 	for i := 0; i < objType.NumField(); i++ {
 		field := objType.Field(i)
 		queryKey := field.Tag.Get("query")
 		headerKey := field.Tag.Get("header")
+		isBodyField := field.Tag.Get("use_as_body") == "true"
 		if queryKey != "" {
 			p.QueryMapping = append(p.QueryMapping, strMapping{
 				Field: i,
@@ -199,6 +206,8 @@ func prepare(objType reflect.Type) *preparedType {
 				Field: i,
 				Key:   headerKey,
 			})
+		} else if isBodyField {
+			p.BodyField = i
 		} else {
 			// Add to JSON.
 			p.JsonMapping = append(p.JsonMapping, intMapping{
@@ -208,7 +217,9 @@ func prepare(objType reflect.Type) *preparedType {
 			jsonFields = append(jsonFields, field)
 		}
 	}
-	p.TypeForJson = reflect.StructOf(jsonFields)
+	if p.BodyField == noBodyField {
+		p.TypeForJson = reflect.StructOf(jsonFields)
+	}
 	return p
 }
 
@@ -247,16 +258,24 @@ func writeQueryAndHeader(objPtr interface{}, query url.Values, header http.Heade
 	}
 	p := p0.(*preparedType)
 
-	if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 {
+	objValue := reflect.ValueOf(objPtr).Elem()
+
+	var jsonPtr interface{}
+	if p.BodyField != noBodyField {
+		// 'use_as_body' case.
+		jsonPtr = objValue.Field(p.BodyField).Addr().Interface()
+	} else if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 {
 		// No query and header. Returning the original object.
-		return objPtr, nil
+		jsonPtr = objPtr
+	} else {
+		// JSON fields mixed with header and/or query fields.
+		forJson := reflect.New(p.TypeForJson).Elem()
+		for _, m := range p.JsonMapping {
+			forJson.Field(m.JsonField).Set(objValue.Field(m.OrigField))
+		}
+		jsonPtr = forJson.Addr().Interface()
 	}
 
-	objValue := reflect.ValueOf(objPtr).Elem()
-	forJson := reflect.New(p.TypeForJson).Elem()
-	for _, m := range p.JsonMapping {
-		forJson.Field(m.JsonField).Set(objValue.Field(m.OrigField))
-	}
 	for _, m := range p.QueryMapping {
 		value, err := toString(objValue.Field(m.Field).Interface())
 		if err != nil {
@@ -274,7 +293,7 @@ func writeQueryAndHeader(objPtr interface{}, query url.Values, header http.Heade
 		header.Set(m.Key, value)
 	}
 
-	return forJson.Addr().Interface(), nil
+	return jsonPtr, nil
 }
 
 func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, header http.Header) error {
@@ -288,14 +307,22 @@ func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, he
 
 	objValue := reflect.ValueOf(objPtr).Elem()
 
-	if len(p.QueryMapping)+len(p.HeaderMapping) == objType.NumField() {
+	if p.BodyField != noBodyField {
+		// 'use_as_body' case.
+		jsonPtr := objValue.Field(p.BodyField).Addr().Interface()
+		if err := json.NewDecoder(jsonReader).Decode(jsonPtr); err != nil {
+			return err
+		}
+	} else if len(p.QueryMapping)+len(p.HeaderMapping) == objType.NumField() {
 		// All the fields are query or header. No fields for JSON.
 		// In this case JSON parsing is skipped.
-		io.Copy(ioutil.Discard, jsonReader)
 	} else if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 {
 		// No query and header. Parse JSON into the original structure.
-		return json.NewDecoder(jsonReader).Decode(objPtr)
+		if err := json.NewDecoder(jsonReader).Decode(objPtr); err != nil {
+			return err
+		}
 	} else {
+		// JSON fields mixed with header and/or query fields.
 		// Parse JSON into a temporary struct and copy fields into the original struct.
 		jsonPtrValue := reflect.New(p.TypeForJson)
 		if err := json.NewDecoder(jsonReader).Decode(jsonPtrValue.Interface()); err != nil {
@@ -306,6 +333,9 @@ func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, he
 			objValue.Field(m.OrigField).Set(jsonValue.Field(m.JsonField))
 		}
 	}
+
+	// Drain the reader in case we skipped parsing or something is left.
+	io.Copy(ioutil.Discard, jsonReader)
 
 	for _, m := range p.QueryMapping {
 		fieldPtr := objValue.Field(m.Field).Addr().Interface()

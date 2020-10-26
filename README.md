@@ -64,6 +64,19 @@ but passed as is. Types implementing `encoding.TextMarshaler` and
 `encoding.TextUnmarshaler` are encoded and decoded using it.
 If no field is no JSON field in the struct, then HTTP body is skipped.
 
+If you need the top-level type matching body JSON to be not a struct,
+but of some other kind (e.g. slice or map), you should provide a field
+in your struct with tag `use_as_body:"true"`:
+
+```go
+type FooRequest struct {
+	// Body of the request is JSON array of strings: ["abc", "eee", ...].
+	Body []string `use_as_body:"true"`
+
+	// You can add 'header' and 'query' fields here, but not 'json'.
+}
+```
+
 Now let's write the function that generates the table of routes:
 
 ```go
