@@ -8,7 +8,10 @@ import (
 )
 
 func main() {
-	client := example.NewClient("http://127.0.0.1:8080")
+	client, err := example.NewClient("http://127.0.0.1:8080")
+	if err != nil {
+		panic(err)
+	}
 
 	ctx := context.Background()
 

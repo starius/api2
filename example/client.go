@@ -4,6 +4,7 @@ package example
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/starius/api2"
 )
@@ -14,12 +15,15 @@ type Client struct {
 
 var _ EchoService = (*Client)(nil)
 
-func NewClient(baseURL string) *Client {
+func NewClient(baseURL string) (*Client, error) {
+	if _, err := url.ParseRequestURI(baseURL); err != nil {
+		return nil, err
+	}
 	routes := GetRoutes(nil)
 	api2client := api2.NewClient(routes, baseURL)
 	return &Client{
 		api2client: api2client,
-	}
+	}, nil
 }
 
 func (c *Client) Hello(ctx context.Context, req *HelloRequest) (res *HelloResponse, err error) {
