@@ -213,7 +213,7 @@ func generateClient(getRoutes interface{}) error {
 		return fmt.Errorf("file %s exists and was not generated; please remove it to proceed", clientFile)
 	}
 
-	if err := ioutil.WriteFile(clientFile, []byte(code), 0755); err != nil {
+	if err := ioutil.WriteFile(clientFile, []byte(code), 0644); err != nil {
 		return fmt.Errorf("failed to write file %s: %v", clientFile, err)
 	}
 
