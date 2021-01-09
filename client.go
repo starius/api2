@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-
-	"golang.org/x/net/context/ctxhttp"
 )
 
 // Client is used on client-side to call remote methods provided by the API.
@@ -99,7 +97,7 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 		req.Header.Set("Authorization", c.authorization)
 	}
 
-	res, err := ctxhttp.Do(req.Context(), c.client, req)
+	res, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
