@@ -11,10 +11,11 @@ import (
 
 // Client is used on client-side to call remote methods provided by the API.
 type Client struct {
-	routeMap map[signature]Route
-	client   *http.Client
-	baseURL  string
-	errorf   func(format string, args ...interface{})
+	routeMap      map[signature]Route
+	client        *http.Client
+	baseURL       string
+	errorf        func(format string, args ...interface{})
+	authorization string
 }
 
 type signature struct {
@@ -60,10 +61,11 @@ func NewClient(routes []Route, baseURL string, opts ...Option) *Client {
 	}
 
 	return &Client{
-		routeMap: routeMap,
-		client:   client,
-		baseURL:  baseURL,
-		errorf:   config.errorf,
+		routeMap:      routeMap,
+		client:        client,
+		baseURL:       baseURL,
+		errorf:        config.errorf,
+		authorization: config.authorization,
 	}
 }
 
@@ -91,6 +93,10 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 	req, err := t.EncodeRequest(ctx, route.Method, url, request)
 	if err != nil {
 		return fmt.Errorf("failed to encode request: %w", err)
+	}
+
+	if c.authorization != "" {
+		req.Header.Set("Authorization", c.authorization)
 	}
 
 	res, err := ctxhttp.Do(req.Context(), c.client, req)
