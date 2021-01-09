@@ -18,6 +18,9 @@ func main() {
 	helloRes, err := client.Hello(ctx, &example.HelloRequest{
 		Key: "secret password",
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	echoRes, err := client.Echo(ctx, &example.EchoRequest{
 		Session: helloRes.Session,
