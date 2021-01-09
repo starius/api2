@@ -25,6 +25,10 @@ type Route struct {
 	// The transport used in this route. If Transport is not set, DefaultTransport
 	// is used.
 	Transport Transport
+
+	// Meta is optional field to put arbitrary data about the route.
+	// E.g. the list of users who are allowed to use the route.
+	Meta map[string]interface{}
 }
 
 // Transport converts back and forth between HTTP and Request, Response types.
