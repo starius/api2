@@ -101,7 +101,6 @@ func panicIf(err error) {
 }
 
 var jsonRawMessageType = reflect.TypeOf((*json.RawMessage)(nil)).Elem()
-var any = interface{}(jsonRawMessageType)
 
 func CustomParse(t reflect.Type) (typegen.IType, bool) {
 	if t == jsonRawMessageType {
@@ -116,12 +115,14 @@ func SerializeCustom(t reflect.Type) string {
 	}
 	return ""
 }
+
 func GenerateTSClient(options *TsGenConfig) {
 	if options.ClientTemplate == nil {
 		options.ClientTemplate = tsClientTemplate
 	}
-	os.RemoveAll(options.OutDir)
-	os.MkdirAll(options.OutDir, os.ModePerm)
+	_ = os.RemoveAll(options.OutDir)
+	err := os.MkdirAll(options.OutDir, os.ModePerm)
+	panicIf(err)
 	apiFile, err := os.OpenFile(filepath.Join(options.OutDir, "api.ts"), os.O_CREATE|os.O_WRONLY, 0755)
 	panicIf(err)
 
@@ -178,6 +179,7 @@ func serializeTypeInfo(t *preparedType) ([]byte, error) {
 	}
 	return json.Marshal(res)
 }
+
 func genRoutes(w io.Writer, routes []Route, p *typegen.Parser) {
 	type routeDef struct {
 		Method      string

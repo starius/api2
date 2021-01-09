@@ -8,7 +8,6 @@ import (
 	"github.com/starius/api2/example"
 )
 
-
 func main() {
 	service := example.NewEchoService(example.NewEchoRepository())
 	routes := example.GetRoutes(service)
