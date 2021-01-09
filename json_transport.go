@@ -335,7 +335,9 @@ func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, he
 	}
 
 	// Drain the reader in case we skipped parsing or something is left.
-	io.Copy(ioutil.Discard, jsonReader)
+	if _, err := io.Copy(ioutil.Discard, jsonReader); err != nil {
+		return err
+	}
 
 	for _, m := range p.QueryMapping {
 		fieldPtr := objValue.Field(m.Field).Addr().Interface()
