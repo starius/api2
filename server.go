@@ -41,6 +41,34 @@ func BindRoutes(mux *http.ServeMux, routes []Route, opts ...Option) {
 	}
 }
 
+// GetMatcher returns a function converting http.Request to Route.
+func GetMatcher(routes []Route) func(*http.Request) (*Route, bool) {
+	path2method2route := make(map[string]map[string]*Route)
+	for _, route := range routes {
+		route := route
+		method2route, has := path2method2route[route.Path]
+		if !has {
+			method2route = make(map[string]*Route)
+			path2method2route[route.Path] = method2route
+		}
+		method2route[route.Method] = &route
+	}
+
+	// Use mux to detect route.Path from http.Request.
+	mux := http.NewServeMux()
+	BindRoutes(mux, routes)
+
+	return func(r *http.Request) (*Route, bool) {
+		_, path := mux.Handler(r)
+		method2route, has := path2method2route[path]
+		if !has {
+			return nil, false
+		}
+		route, has := method2route[r.Method]
+		return route, has
+	}
+}
+
 func newHTTPHandler(h interface{}, t Transport, errorf func(format string, args ...interface{})) http.HandlerFunc {
 	if t == nil {
 		t = DefaultTransport
