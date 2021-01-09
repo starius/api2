@@ -5,16 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-
-	"golang.org/x/net/context/ctxhttp"
 )
 
 // Client is used on client-side to call remote methods provided by the API.
 type Client struct {
-	routeMap map[signature]Route
-	client   *http.Client
-	baseURL  string
-	errorf   func(format string, args ...interface{})
+	routeMap      map[signature]Route
+	client        *http.Client
+	baseURL       string
+	errorf        func(format string, args ...interface{})
+	authorization string
 }
 
 type signature struct {
@@ -60,10 +59,11 @@ func NewClient(routes []Route, baseURL string, opts ...Option) *Client {
 	}
 
 	return &Client{
-		routeMap: routeMap,
-		client:   client,
-		baseURL:  baseURL,
-		errorf:   config.errorf,
+		routeMap:      routeMap,
+		client:        client,
+		baseURL:       baseURL,
+		errorf:        config.errorf,
+		authorization: config.authorization,
 	}
 }
 
@@ -93,7 +93,11 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	res, err := ctxhttp.Do(req.Context(), c.client, req)
+	if c.authorization != "" {
+		req.Header.Set("Authorization", c.authorization)
+	}
+
+	res, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
