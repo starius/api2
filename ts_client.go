@@ -22,11 +22,11 @@ const tsClient = `/* eslint-disable */
 import {route} from "./utils"
 
 export const api = {
-{{- range $key, $services := .}} 
+{{- range $key, $services := .}}
 {{$key}}: {
-	{{- range $service, $methods := $services }} 
+	{{- range $service, $methods := $services }}
 	{{$service}}: {
-		{{- range $info := $methods}} 
+		{{- range $info := $methods}}
 			{{$info.FnInfo.Method}}: route<{{.ReqType}}, {{.ResType}}>(
 				"{{.Method}}", "{{.Path}}",
 				{{.TypeInfoReq}},
