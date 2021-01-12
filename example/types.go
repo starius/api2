@@ -6,8 +6,15 @@ import (
 	"context"
 )
 
+type UserSettings map[string]interface{}
 type CustomType struct {
 	Hell int
+	UserSettings
+}
+
+type CustomType2 struct {
+	Hell int
+	*UserSettings
 }
 type EchoRequest struct {
 	Session string `header:"session"`
