@@ -1,7 +1,6 @@
 package typegen
 
 import (
-	"fmt"
 	"go/ast"
 	"reflect"
 	"regexp"
@@ -84,9 +83,6 @@ func FormatDoc(str string) string {
 func (this *Parser) visitType(t reflect.Type) {
 	unrefT := indirect(t)
 	k := unrefT.Kind()
-	if unrefT.String() == "flowlib.V1Flow" {
-		fmt.Println("[parser] found", unrefT, this.isVisited(unrefT), unrefT)
-	}
 	if this.isVisited(unrefT) {
 		return
 	}
@@ -131,10 +127,11 @@ func (this *Parser) visitType(t reflect.Type) {
 			if record.Name != "" && astFields != nil && len(astFields) > i {
 				field.Doc = FormatDoc(astFields[i].Comment.Text())
 			}
+			isEmbed := structField.Anonymous && k == reflect.Struct
 			parseResult, err := ParseStructTag(structField.Tag)
 			field.Tag = parseResult
 			panicIf(err)
-			if parseResult.State == Ignored {
+			if parseResult.State == Ignored || (parseResult.State == NoInfo && !isEmbed) {
 				continue
 			}
 			if parseResult.FieldType != "" {

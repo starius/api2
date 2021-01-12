@@ -47,6 +47,7 @@ const (
 	Optional
 	Null
 	NotNull
+	NoInfo
 )
 
 type ParseResult struct {
@@ -82,10 +83,12 @@ func ParseStructTag(structTag reflect.StructTag) (*ParseResult, error) {
 	if result.State != Ignored {
 		result.FieldName = jsonTagVal
 		result.FieldType = tsTagVal
-		if result.FieldName == "1" {
+		if result.FieldName == "" {
 			result.FieldName = headerTagVal
+			// Set header as optional in case you want to set it in implicit way.
+			result.State = Optional
 		}
-		if result.FieldName == "1" {
+		if result.FieldName == "" {
 			result.FieldName = queryTagVal
 		}
 		switch tsTagOptions {
@@ -98,6 +101,9 @@ func ParseStructTag(structTag reflect.StructTag) (*ParseResult, error) {
 		}
 		if jsonTagOption == "omitempty" {
 			result.State = Optional
+		}
+		if result.FieldName == "" {
+			result.State = NoInfo
 		}
 	}
 	return result, nil
