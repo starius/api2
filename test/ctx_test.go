@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,13 +17,13 @@ func TestCtx(t *testing.T) {
 	type HelloResponse struct {
 	}
 
-	cancelled := false
+	var cancelled int64
 
 	helloHandler := func(ctx context.Context, req *HelloRequest) (res *HelloResponse, err error) {
 		timer := time.NewTimer(2 * time.Second)
 		select {
 		case <-ctx.Done():
-			cancelled = true
+			atomic.StoreInt64(&cancelled, 1)
 			timer.Stop()
 			return nil, ctx.Err()
 		case <-timer.C:
@@ -47,14 +48,14 @@ func TestCtx(t *testing.T) {
 	t.Run("no cancel", func(t *testing.T) {
 		ctx := context.Background()
 
-		cancelled = false
+		atomic.StoreInt64(&cancelled, 0)
 
 		helloRes := &HelloResponse{}
 		err := client.Call(ctx, helloRes, &HelloRequest{})
 		if err != nil {
 			t.Errorf("Hello failed: %v.", err)
 		}
-		if cancelled {
+		if atomic.LoadInt64(&cancelled) == 1 {
 			t.Errorf("the request was unexpectedly cancelled")
 		}
 	})
@@ -63,14 +64,14 @@ func TestCtx(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second/10)
 		defer cancel()
 
-		cancelled = false
+		atomic.StoreInt64(&cancelled, 0)
 
 		helloRes := &HelloResponse{}
 		err := client.Call(ctx, helloRes, &HelloRequest{})
 		if err == nil {
 			t.Errorf("Hello did not failed.")
 		}
-		if !cancelled {
+		if atomic.LoadInt64(&cancelled) == 0 {
 			t.Errorf("the request was not cancelled")
 		}
 	})
