@@ -132,12 +132,12 @@ type Client struct {
 {{ if .ServiceInterface }}
 var _ {{ .ServiceInterface }} = (*Client)(nil)
 {{ end }}
-func NewClient(baseURL string) (*Client, error) {
+func NewClient(baseURL string, opts ...api2.Option) (*Client, error) {
 	if _, err := url.ParseRequestURI(baseURL); err != nil {
 		return nil, err
 	}
 	routes := GetRoutes(nil)
-	api2client := api2.NewClient(routes, baseURL)
+	api2client := api2.NewClient(routes, baseURL, opts...)
 	return &Client{
 		api2client: api2client,
 	}, nil

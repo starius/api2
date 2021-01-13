@@ -193,6 +193,10 @@ func prepare(objType reflect.Type) *preparedType {
 	jsonFields := make([]reflect.StructField, 0, objType.NumField())
 	for i := 0; i < objType.NumField(); i++ {
 		field := objType.Field(i)
+		if field.PkgPath != "" {
+			// The field is unexported, according to https://golang.org/pkg/reflect/#StructField .
+			continue
+		}
 		queryKey := field.Tag.Get("query")
 		headerKey := field.Tag.Get("header")
 		isBodyField := field.Tag.Get("use_as_body") == "true"
