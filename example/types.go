@@ -19,7 +19,7 @@ type CustomType2 struct {
 type EchoRequest struct {
 	Session  string `header:"session"`
 	Text     string `json:"text"`
-	internal string
+	internal string //nolint:structcheck,unused
 }
 
 // EchoResponse.
