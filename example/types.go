@@ -17,8 +17,9 @@ type CustomType2 struct {
 	*UserSettings
 }
 type EchoRequest struct {
-	Session string `header:"session"`
-	Text    string `json:"text"`
+	Session  string `header:"session"`
+	Text     string `json:"text"`
+	internal string //nolint:structcheck,unused
 }
 
 // EchoResponse.

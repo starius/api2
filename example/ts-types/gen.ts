@@ -22,17 +22,17 @@ example: {
 export declare namespace example {
 
 export type HelloRequest = { 
-	Key: string 
+	key?: string 
 }
 
 
 export type HelloResponse = { 
-	Session: string 
+	session?: string 
 }
 
 
 export type EchoRequest = { 
-	Session: string  
+	session?: string  
 	text: string 
 }
 
@@ -42,15 +42,13 @@ export type EchoResponse = {
 }
 
 
-export type CustomType =  example.UserSettings & { 
-	Hell: number 
+export type CustomType =  example.UserSettings & {
 }
 
 
 export type UserSettings = Record<string, any> |  null
 
-export type CustomType2 =  example.UserSettings & { 
-	Hell: number 
+export type CustomType2 =  example.UserSettings & {
 }
 
 }
