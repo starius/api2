@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -18,8 +19,10 @@ func TestCtx(t *testing.T) {
 	}
 
 	var cancelled int64
+	var wg sync.WaitGroup
 
 	helloHandler := func(ctx context.Context, req *HelloRequest) (res *HelloResponse, err error) {
+		defer wg.Done()
 		timer := time.NewTimer(2 * time.Second)
 		select {
 		case <-ctx.Done():
@@ -51,7 +54,9 @@ func TestCtx(t *testing.T) {
 		atomic.StoreInt64(&cancelled, 0)
 
 		helloRes := &HelloResponse{}
+		wg.Add(1)
 		err := client.Call(ctx, helloRes, &HelloRequest{})
+		wg.Wait()
 		if err != nil {
 			t.Errorf("Hello failed: %v.", err)
 		}
@@ -67,7 +72,9 @@ func TestCtx(t *testing.T) {
 		atomic.StoreInt64(&cancelled, 0)
 
 		helloRes := &HelloResponse{}
+		wg.Add(1)
 		err := client.Call(ctx, helloRes, &HelloRequest{})
+		wg.Wait()
 		if err == nil {
 			t.Errorf("Hello did not failed.")
 		}
