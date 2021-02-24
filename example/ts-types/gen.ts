@@ -18,27 +18,27 @@ example: {
 	},
 },
 }
- 
+
 export declare namespace example {
 
-export type HelloRequest = { 
-	key?: string 
+export type HelloRequest = {
+	key?: string
 }
 
 
-export type HelloResponse = { 
-	session?: string 
+export type HelloResponse = {
+	session?: string
 }
 
 
-export type EchoRequest = { 
-	session?: string  
-	text: string 
+export type EchoRequest = {
+	session?: string
+	text: string
 }
 
-// EchoResponse. 
-export type EchoResponse = { 
-	text: string // field comment. 
+// EchoResponse.
+export type EchoResponse = {
+	text: string // field comment.
 }
 
 

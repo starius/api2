@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"reflect"
 	"regexp"
+	"strings"
 )
 
 type Parser struct {
@@ -77,7 +78,7 @@ func (this *Parser) isVisited(t reflect.Type) bool {
 var re = regexp.MustCompile(`[\n\t\r]+`)
 
 func FormatDoc(str string) string {
-	return re.ReplaceAllString(str, " ")
+	return strings.TrimSpace(re.ReplaceAllString(str, " "))
 }
 
 func (this *Parser) visitType(t reflect.Type) {
