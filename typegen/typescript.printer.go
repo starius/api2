@@ -9,7 +9,7 @@ import (
 	"text/template"
 )
 
-const GlobalTemplate = `{{- range $namespace, $types := .}} 
+const GlobalTemplate = `{{- range $namespace, $types := .}}
 export declare namespace {{$namespace}} {
 {{- range $type := $types}}
 {{if $type.Doc| ne ""}}// {{$type.Doc -}}{{end}}
@@ -18,8 +18,8 @@ export type {{$type.Name}} = {{$type|Serialize}}{{end}}
 `
 
 const RecordTemplate = `{{ range $field := .Embedded}} {{$field | RefName}} & {{end}}{
-{{- range $field := .Fields}} 
-	{{$field | Row}} {{if $field.Doc| ne ""}}// {{$field.Doc}}{{end}}
+{{- range $field := .Fields}}
+	{{$field | Row}}{{if $field.Doc| ne ""}} // {{$field.Doc}}{{end}}
 {{- end}}
 }
 `
