@@ -1,10 +1,24 @@
 package api2
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
 )
+
+type errorMessage struct {
+	Error  string          `json:"error"`
+	Detail json.RawMessage `json:"detail,omitempty"`
+	Code   string          `json:"code,omitempty"`
+}
+
+func jsonError(w http.ResponseWriter, code int, format string, args ...interface{}) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	errmsg := fmt.Sprintf(format, args...)
+	return json.NewEncoder(w).Encode(errorMessage{Error: errmsg})
+}
 
 // BindRoutes adds handlers of routes to http.ServeMux.
 func BindRoutes(mux *http.ServeMux, routes []Route, opts ...Option) {
