@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -29,6 +30,13 @@ type JsonTransport struct {
 	RequestEncoder  func(ctx context.Context, method, url string, req interface{}) (*http.Request, error)
 	ResponseDecoder func(context.Context, *http.Response, interface{}) error
 	ErrorDecoder    func(context.Context, *http.Response) error
+
+	// Errors whose structure is preserved and parsed back by api2 Client.
+	// Values in the map are sample objects of error types. Keys in the map
+	// are user-provided names of such errors. This value is passed in a
+	// separate JSON field ("detail") as well as its type (in JSON field
+	// "code"). Other errors are reduced to their messages.
+	Errors map[string]error
 }
 
 type humanType struct{}
@@ -89,7 +97,7 @@ func (h *JsonTransport) EncodeError(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	code := errorToCode(err)
-	return jsonError(w, code, "%v", err)
+	return h.jsonError(w, code, err)
 }
 
 func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string, req interface{}) (*http.Request, error) {
@@ -150,22 +158,57 @@ func (h *JsonTransport) DecodeError(ctx context.Context, res *http.Response) err
 	if err != nil {
 		return err
 	}
+
 	var msg errorMessage
 	if err := json.Unmarshal(buf, &msg); err != nil {
 		return fmt.Errorf("failed to decode error message %s, HTTP status %s: %v", string(buf), res.Status, err)
 	}
+
+	errType := msg.Code
+	errSample, has := h.Errors[errType]
+	if has {
+		errPtrValue := reflect.New(reflect.TypeOf(errSample))
+		if err := json.Unmarshal(msg.Detail, errPtrValue.Interface()); err != nil {
+			return fmt.Errorf("failed to decode error message %s of type %s: %v", string(msg.Detail), errType, err)
+		}
+		return errPtrValue.Elem().Interface().(error)
+	} else {
+		log.Printf("Unknown error type: %s", errType)
+	}
+
 	return fmt.Errorf("API returned error with HTTP status %s: %v", res.Status, msg.Error)
 }
 
-type errorMessage struct {
-	Error string `json:"error"`
+func detectErrorType(err error, registeredErrors map[string]error) (error, string) {
+	for k, v := range registeredErrors {
+		if reflect.TypeOf(v) == reflect.TypeOf(err) {
+			return err, k
+		}
+	}
+	err = errors.Unwrap(err)
+	if err == nil {
+		return nil, ""
+	}
+	return detectErrorType(err, registeredErrors)
 }
 
-func jsonError(w http.ResponseWriter, code int, format string, args ...interface{}) error {
+func (h *JsonTransport) jsonError(w http.ResponseWriter, code int, err error) error {
+	unwrapped, errType := detectErrorType(err, h.Errors)
+
+	msg := errorMessage{Error: fmt.Sprintf("%v", err)}
+	if errType != "" {
+		origError, err2 := json.Marshal(unwrapped)
+		if err2 != nil {
+			log.Printf("Failed to serialize error of type %s: %v", errType, err2)
+		} else {
+			msg.Code = errType
+			msg.Detail = origError
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	errmsg := fmt.Sprintf(format, args...)
-	return json.NewEncoder(w).Encode(errorMessage{errmsg})
+	return json.NewEncoder(w).Encode(msg)
 }
 
 type strMapping struct {
