@@ -6,6 +6,15 @@ import (
 	"context"
 )
 
+type Direction int
+
+const (
+	North Direction = iota
+	East
+	South
+	West
+)
+
 type UserSettings map[string]interface{}
 type CustomType struct {
 	Hell int
@@ -20,6 +29,7 @@ type EchoRequest struct {
 	Session  string `header:"session"`
 	Text     string `json:"text"`
 	internal string //nolint:structcheck,unused
+	Dir      Direction `json:"dir"`
 }
 
 // EchoResponse.
