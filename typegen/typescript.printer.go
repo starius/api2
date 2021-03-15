@@ -9,11 +9,13 @@ import (
 	"text/template"
 )
 
-const GlobalTemplate = `{{- range $namespace, $types := .}}
+const GlobalTemplate = `{{- range $namespace, $types := . -}}
+{{- range $type := $types}}{{ if eq (printf "%T" $type) "*typegen.EnumDef" }}{{$type|SerializeEnum}}{{end}}{{end}}{{end}}
+{{- range $namespace, $types := .}}
 export declare namespace {{$namespace}} {
 {{- range $type := $types}}
 {{if $type.Doc| ne ""}}// {{$type.Doc -}}{{end}}
-export type {{$type.Name}} = {{$type|Serialize}}{{end}}
+{{$type|Serialize}}{{end}}
 }{{end}}
 `
 
@@ -125,23 +127,31 @@ func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier) {
 	}
 
 	tmpl, err := template.New("types template").Funcs(template.FuncMap{
+		"SerializeEnum": func(t IType) string {
+			switch v := t.(type) {
+			case *EnumDef:
+				res := fmt.Sprintf("export enum %sEnum {\n", t.GetName())
+				for _, v := range v.Values {
+					res += fmt.Sprintf("    %s = %s,\n", v.name, v.Stringify())
+				}
+				res += "}\n"
+				return res
+			}
+			return ""
+		},
 		"Serialize": func(t IType) string {
 			switch v := t.(type) {
 			case *RecordDef:
-				return recordToString(v)
+				return fmt.Sprintf("export type %s = %s", v.Name, recordToString(v))
 			case *EnumDef:
 				res := ""
-				for _, v := range v.Values {
-					if res != "" {
-						res += " | "
-					}
-					res += v.Stringify()
-				}
+				res += fmt.Sprintf("export type %s = `${%s}`", t.GetName(), t.GetName()+"Enum")
 				return res
 			case *TypeDef:
-				return typeToString(v.T, func(t reflect.Type) string {
+				typeStr := typeToString(v.T, func(t reflect.Type) string {
 					return parser.GetVisited(t).RefName()
 				}, stringify)
+				return fmt.Sprintf("export type %s = %s", v.GetName(), typeStr)
 			}
 			return "1"
 		},

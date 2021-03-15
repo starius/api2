@@ -13,10 +13,16 @@ example: {
 				{"header":["session"]}),
 			Echo: route<example.EchoRequest, example.EchoResponse>(
 				"POST", "/echo",
-				{"header":["session"],"json":["text"]},
+				{"header":["session"],"json":["text","dir"]},
 				{"json":["text"]}),
 	},
 },
+}
+export enum DirectionEnum {
+    East = 1,
+    North = 0,
+    South = 2,
+    West = 3,
 }
 
 export declare namespace example {
@@ -34,8 +40,11 @@ export type HelloResponse = {
 export type EchoRequest = {
 	session?: string
 	text: string
+	dir: example.Direction
 }
 
+
+export type Direction = `${DirectionEnum}`
 // EchoResponse.
 export type EchoResponse = {
 	text: string // field comment.
