@@ -13,7 +13,7 @@ example: {
 				{"header":["session"]}),
 			Echo: route<example.EchoRequest, example.EchoResponse>(
 				"POST", "/echo",
-				{"header":["session"],"json":["text","dir"]},
+				{"header":["session"],"json":["text","dir","items","maps"]},
 				{"json":["text"]}),
 	},
 },
@@ -41,10 +41,18 @@ export type EchoRequest = {
 	session?: string
 	text: string
 	dir: example.Direction
+	items: Array<example.CustomType2> | null
+	maps: Record<string, example.Direction> |  null
 }
 
 
 export type Direction = `${DirectionEnum}`
+
+export type CustomType2 =  example.UserSettings & {
+}
+
+
+export type UserSettings = Record<string, any> |  null
 // EchoResponse.
 export type EchoResponse = {
 	text: string // field comment.
@@ -52,12 +60,6 @@ export type EchoResponse = {
 
 
 export type CustomType =  example.UserSettings & {
-}
-
-
-export type UserSettings = Record<string, any> |  null
-
-export type CustomType2 =  example.UserSettings & {
 }
 
 }

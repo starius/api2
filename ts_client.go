@@ -88,7 +88,7 @@ export function route<Req, Res>(method:string, url:string, requestMapping:Reques
 var tsClientTemplate = template.Must(template.New("ts_static_client").Parse(tsClient))
 var tsClientUtilsTemplate = template.Must(template.New("ts_static_client_utils").Parse(templateHeaderDefault))
 
-type TsGenConfig struct {
+type TypesGenConfig struct {
 	OutDir         string
 	ClientTemplate *template.Template
 	Routes         []interface{}
@@ -118,7 +118,7 @@ func SerializeCustom(t reflect.Type) string {
 	return ""
 }
 
-func GenerateTSClient(options *TsGenConfig) {
+func GenerateTSClient(options *TypesGenConfig) {
 	if options.ClientTemplate == nil {
 		options.ClientTemplate = tsClientTemplate
 	}
@@ -201,12 +201,12 @@ func Matches(this *BlacklistItem, Package, Service, Handler string) bool {
 	return res
 }
 
-func genRoutes(w io.Writer, routes []Route, p *typegen.Parser, options *TsGenConfig) {
+func genRoutes(w io.Writer, routes []Route, p *typegen.Parser, options *TypesGenConfig) {
 	type routeDef struct {
 		Method      string
 		Path        string
-		ReqType     interface{}
-		ResType     interface{}
+		ReqType     string
+		ResType     string
 		Handler     interface{}
 		FnInfo      FnInfo
 		TypeInfoReq string

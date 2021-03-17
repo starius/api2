@@ -25,11 +25,14 @@ type CustomType2 struct {
 	Hell int
 	*UserSettings
 }
+
 type EchoRequest struct {
-	Session  string `header:"session"`
-	Text     string `json:"text"`
-	internal string //nolint:structcheck,unused
-	Dir      Direction `json:"dir"`
+	Session  string               `header:"session"`
+	Text     string               `json:"text"`
+	internal string               //nolint:structcheck,unused
+	Dir      Direction            `json:"dir"`
+	Items    []CustomType2        `json:"items"`
+	Maps     map[string]Direction `json:"maps"`
 }
 
 // EchoResponse.
