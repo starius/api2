@@ -1,0 +1,151 @@
+{
+ "openapi": "3.0.0",
+ "components": {
+  "schemas": {
+   "example.CustomType2": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/example.UserSettings"
+     }
+    ],
+    "type": "object"
+   },
+   "example.Direction": {
+    "enum": [
+     1,
+     0,
+     2,
+     3
+    ],
+    "type": "number"
+   },
+   "example.EchoRequest": {
+    "properties": {
+     "dir": {
+      "$ref": "#/components/schemas/example.Direction"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/example.CustomType2"
+      },
+      "type": "array"
+     },
+     "maps": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/example.Direction"
+      },
+      "type": "object"
+     },
+     "session": {
+      "type": "string"
+     },
+     "text": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "example.EchoResponse": {
+    "properties": {
+     "text": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "example.HelloRequest": {
+    "properties": {
+     "key": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "example.HelloResponse": {
+    "properties": {
+     "session": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "example.UserSettings": {}
+  },
+  "requestBodies": {
+   "example.EchoRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.EchoRequest"
+      }
+     }
+    }
+   },
+   "example.HelloRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.HelloRequest"
+      }
+     }
+    }
+   }
+  }
+ },
+ "info": {
+  "title": "",
+  "version": "3.0.0"
+ },
+ "paths": {
+  "/echo": {
+   "post": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/example.EchoRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/example.EchoResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "example"
+    ]
+   }
+  },
+  "/hello": {
+   "post": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/example.HelloRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/example.HelloResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "example"
+    ]
+   }
+  }
+ }
+}

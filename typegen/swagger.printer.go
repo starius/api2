@@ -1,113 +1,114 @@
 package typegen
 
 import (
-	"fmt"
 	"reflect"
 
-	"github.com/go-openapi/spec"
+	spec "github.com/getkin/kin-openapi/openapi3"
 )
 
-func PrintSwagger(p *Parser) spec.Swagger {
-	def := spec.Definitions{}
-	swag := spec.Swagger{SwaggerProps: spec.SwaggerProps{
-		Definitions: def,
-		Swagger:     "2.0",
-	}}
+const RefSchemaPrefix = "#/components/schemas/"
+const RefReqPrefix = "#/components/requestBodies/"
+
+func PrintSwagger(p *Parser, swag *spec.Swagger) {
+	def := spec.Schemas{}
+
 	for _, st := range p.seen {
 		schema := GenerateOpenApi(p, st)
-		def[st.RefName()] = schema
+		def[st.RefName()] = spec.NewSchemaRef("", &schema)
 	}
-	return swag
+	swag.Components.Schemas = def
 }
 
-func typeToSwagger(t reflect.Type, swaggerType spec.Schema, getTypeName TypeToString) spec.Schema {
+func typeToSwagger(t reflect.Type, swaggerType *spec.SchemaRef, getTypeName TypeToString) *spec.SchemaRef {
 	k := t.Kind()
+	if swaggerType.Value == nil {
+		swaggerType.Value = spec.NewSchema()
+	}
 	switch {
 	case k == reflect.Ptr:
 		t = indirect(t)
-		swaggerType.AsNullable()
+		swaggerType.Value.WithNullable()
 		return typeToSwagger(t, swaggerType, getTypeName)
 	case k == reflect.Struct:
 		if isDate(t) {
-			swaggerType.AddType("string", "date-time")
+			swaggerType.Value.Type = "string"
+			swaggerType.Value.Format = "date-time"
 			return swaggerType
 		}
-		ref, err := spec.NewRef("#/definitions/" + getTypeName(t))
-		if err != nil {
-			fmt.Println(err)
-		}
-		swaggerType.Ref = ref
+
+		swaggerType.Ref = RefSchemaPrefix + getTypeName(t)
 		return swaggerType
 	case isNumber(k) && isEnum(t):
-		ref, err := spec.NewRef("#/definitions/" + getTypeName(t))
-		if err != nil {
-			fmt.Println(err)
-		}
-		swaggerType.Ref = ref
+		stringRef := RefSchemaPrefix + getTypeName(t)
+		swaggerType.Ref = stringRef
 		return swaggerType
 	case isNumber(k):
-		return *swaggerType.Typed("number", "")
+		swaggerType.Value.Type = "number"
+		return swaggerType
 	case k == reflect.String && isEnum(t):
-		ref, err := spec.NewRef("#/definitions/" + getTypeName(t))
-		if err != nil {
-			fmt.Println(err)
-		}
-		swaggerType.Ref = ref
+		swaggerType.Ref = RefSchemaPrefix + getTypeName(t)
 		return swaggerType
 	case k == reflect.String:
-		return *swaggerType.Typed("string", "")
+		swaggerType.Value.Type = "string"
+		return swaggerType
 	case k == reflect.Bool:
-		return *swaggerType.Typed("boolean", "")
+		swaggerType.Value.Type = "boolean"
+		return swaggerType
 	case k == reflect.Slice || k == reflect.Array:
-		swaggerType.Type = spec.StringOrArray{"array"}
-		props := spec.Schema{}
-		swaggerType.Nullable = true
-		swaggerType.CollectionOf(typeToSwagger(t.Elem(), props, getTypeName))
+		swaggerType.Value.Type = "array"
+		props := &spec.SchemaRef{}
+		swaggerType.Value.Items = typeToSwagger(t.Elem(), props, getTypeName)
 		return swaggerType
 	case k == reflect.Map:
-		props := spec.Schema{}
-		item := typeToSwagger(t.Elem(), props, getTypeName)
-		swaggerType.SchemaProps = spec.MapProperty(&item).SchemaProps
+		swaggerType.Value.AdditionalProperties = typeToSwagger(t.Elem(), &spec.SchemaRef{}, getTypeName)
+		swaggerType.Value.Type = "object"
 		return swaggerType
 	}
 	return swaggerType
 }
 
 func GenerateOpenApi(p *Parser, s IType) spec.Schema {
-	t := spec.Schema{SchemaProps: spec.SchemaProps{
-		Properties: map[string]spec.Schema{},
-	}}
+	t := spec.Schema{
+		Properties: map[string]*spec.SchemaRef{},
+	}
 	propertiesTypes := &t
 	switch v := s.(type) {
 	case *EnumDef:
-		t.Typed(v.T.Kind().String(), "")
 		convertedValues := make([]interface{}, len(v.Values))
 		for i, v := range v.Values {
 			convertedValues[i] = v.value.Interface()
 		}
+		enumType := v.T.Kind().String()
+		if enumType != "string" {
+			enumType = "number"
+		}
+		t.Type = enumType
 		t.WithEnum(convertedValues...)
 		return t
 	case *RecordDef:
 		if len(v.Embedded) != 0 {
-			types := make([]spec.Schema, len(v.Embedded))
+			types := make([]*spec.SchemaRef, len(v.Embedded))
 			for i, v := range v.Embedded {
-				ref := spec.RefProperty("#/definitions/" + p.GetVisited(v).RefName())
-				types[i] = *ref
+				r := spec.NewSchemaRef(RefSchemaPrefix+p.GetVisited(v).RefName(), nil)
+				types[i] = r
 			}
-			propertiesTypes = &spec.Schema{SchemaProps: spec.SchemaProps{
-				Properties: map[string]spec.Schema{},
-			}}
-			t.WithAllOf(types...)
-			t.AddToAllOf(*propertiesTypes)
+			t.AllOf = append(t.OneOf, types...)
+			t.Properties = map[string]*spec.SchemaRef{}
 		}
-		propertiesTypes.Typed("object", "")
+		propertiesTypes.Type = "object"
 		for _, field := range v.Fields {
-			scm := spec.Schema{}
-			propertiesTypes.SchemaProps.Properties[field.Key] = typeToSwagger(field.Type, scm, func(t reflect.Type) string {
+			scm := spec.NewSchemaRef("", spec.NewSchema())
+			if field.Type == nil {
+				continue
+			}
+			keyName := field.Key
+			if field.Tag.FieldName != "" {
+				keyName = field.Tag.FieldName
+			}
+			propertiesTypes.Properties[keyName] = typeToSwagger(field.Type, scm, func(t reflect.Type) string {
 				return p.GetVisited(t).RefName()
 			})
 		}
 	}
-
 	return t
 }
