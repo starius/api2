@@ -130,11 +130,11 @@ func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier) {
 		"SerializeEnum": func(t IType) string {
 			switch v := t.(type) {
 			case *EnumDef:
-				res := fmt.Sprintf("export enum %sEnum {\n", t.GetName())
+				res := fmt.Sprintf("export const %sEnum  = {\n", t.GetName())
 				for _, v := range v.Values {
-					res += fmt.Sprintf("    %s = %s,\n", v.name, v.Stringify())
+					res += fmt.Sprintf("    \"%s\": %s,\n", v.name, v.Stringify())
 				}
-				res += "}\n"
+				res += "} as const\n"
 				return res
 			}
 			return ""
@@ -145,7 +145,7 @@ func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier) {
 				return fmt.Sprintf("export type %s = %s", v.Name, recordToString(v))
 			case *EnumDef:
 				res := ""
-				res += fmt.Sprintf("export type %s = `${%s}`", t.GetName(), t.GetName()+"Enum")
+				res += fmt.Sprintf("export type %s = typeof %s[keyof typeof %s]", t.GetName(), t.GetName()+"Enum", t.GetName()+"Enum")
 				return res
 			case *TypeDef:
 				typeStr := typeToString(v.T, func(t reflect.Type) string {
