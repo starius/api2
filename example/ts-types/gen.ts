@@ -18,12 +18,12 @@ example: {
 	},
 },
 }
-export enum DirectionEnum {
-    East = 1,
-    North = 0,
-    South = 2,
-    West = 3,
-}
+export const DirectionEnum  = {
+    "East": 1,
+    "North": 0,
+    "South": 2,
+    "West": 3,
+} as const
 
 export declare namespace example {
 
@@ -46,7 +46,7 @@ export type EchoRequest = {
 }
 
 
-export type Direction = `${DirectionEnum}`
+export type Direction = typeof DirectionEnum[keyof typeof DirectionEnum]
 
 export type CustomType2 =  example.UserSettings & {
 }
