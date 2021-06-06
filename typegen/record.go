@@ -3,6 +3,7 @@ package typegen
 import (
 	"path"
 	"reflect"
+	"strings"
 )
 
 type RawType struct {
@@ -15,6 +16,7 @@ type IType interface {
 	SetName(name, pkg string)
 	GetPackage() string
 	RefName() string
+	IdName() string
 	GetType() reflect.Type
 }
 
@@ -73,6 +75,11 @@ func (this *BaseType) SetName(s, pkg string) {
 func (this *BaseType) RefName() string {
 	pkg := this.GetPackage()
 	return path.Base(pkg) + "." + this.Name
+}
+
+func (this *BaseType) IdName() string {
+	pkg := this.GetPackage()
+	return strings.Title(path.Base(pkg)) + this.Name
 }
 
 func (this *BaseType) GetType() reflect.Type {
