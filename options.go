@@ -1,10 +1,14 @@
 package api2
 
-import "log"
+import (
+	"log"
+	"net/http"
+)
 
 type Config struct {
 	errorf        func(format string, args ...interface{})
 	authorization string // Affects only clients.
+	client        *http.Client
 }
 
 func NewDefaultConfig() *Config {
@@ -24,5 +28,11 @@ func ErrorLogger(logger func(format string, args ...interface{})) Option {
 func AuthorizationHeader(authorization string) Option {
 	return func(config *Config) {
 		config.authorization = authorization
+	}
+}
+
+func CustomClient(client *http.Client) Option {
+	return func(config *Config) {
+		config.client = client
 	}
 }

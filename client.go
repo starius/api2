@@ -57,6 +57,9 @@ func NewClient(routes []Route, baseURL string, opts ...Option) *Client {
 	for _, opt := range opts {
 		opt(config)
 	}
+	if config.client != nil {
+		client = config.client
+	}
 
 	return &Client{
 		routeMap:      routeMap,

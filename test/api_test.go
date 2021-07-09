@@ -159,3 +159,48 @@ func TestQueryAndHeader(t *testing.T) {
 		t.Errorf("SkippedField=%d, want 0", postRes.SkippedField)
 	}
 }
+
+type customTransport struct {
+	used bool
+}
+
+func (t *customTransport) RoundTrip(req *http.Request) (res *http.Response, err error) {
+	t.used = true
+	return http.DefaultTransport.RoundTrip(req)
+}
+
+func TestCustomClient(t *testing.T) {
+	type GetRequest struct {
+	}
+	type GetResponse struct {
+	}
+
+	getHandler := func(ctx context.Context, req *GetRequest) (res *GetResponse, err error) {
+		return &GetResponse{}, nil
+	}
+
+	routes := []api2.Route{
+		{Method: http.MethodGet, Path: "/number", Handler: getHandler},
+	}
+
+	mux := http.NewServeMux()
+	api2.BindRoutes(mux, routes)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	transport := &customTransport{}
+	httpClient := &http.Client{
+		Transport: transport,
+	}
+
+	client := api2.NewClient(routes, server.URL, api2.CustomClient(httpClient))
+
+	getRes := &GetResponse{}
+	err := client.Call(context.Background(), getRes, &GetRequest{})
+	if err != nil {
+		t.Errorf("GET(10) failed: %v.", err)
+	}
+	if !transport.used {
+		t.Errorf("Custom transport has not been used")
+	}
+}
