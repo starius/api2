@@ -94,6 +94,7 @@ type TypesGenConfig struct {
 	Routes         []interface{}
 	Types          []interface{}
 	Blacklist      []BlacklistItem
+	OnDone         func(cfg *TypesGenConfig, p *typegen.Parser, routes []Route)
 }
 
 func panicIf(err error) {
@@ -117,6 +118,12 @@ func SerializeCustom(t reflect.Type) string {
 	}
 	return ""
 }
+func SerializeCustomSchema(t reflect.Type) string {
+	if t == jsonRawMessageType {
+		return "unknown"
+	}
+	return ""
+}
 
 func GenerateTSClient(options *TypesGenConfig) {
 	if options.ClientTemplate == nil {
@@ -126,6 +133,7 @@ func GenerateTSClient(options *TypesGenConfig) {
 	err := os.MkdirAll(options.OutDir, os.ModePerm)
 	panicIf(err)
 	typesFile, err := os.OpenFile(filepath.Join(options.OutDir, "gen.ts"), os.O_WRONLY|os.O_CREATE, 0755)
+	panicIf(err)
 	panicIf(err)
 	parser := typegen.NewParser()
 	parser.CustomParse = CustomParse
@@ -146,8 +154,9 @@ func GenerateTSClient(options *TypesGenConfig) {
 	}
 	parser.ParseRaw(options.Types...)
 	typegen.PrintTsTypes(parser, typesFile, SerializeCustom)
-	panicIf(err)
-
+	if options.OnDone != nil {
+		options.OnDone(options, parser, allRoutes)
+	}
 }
 
 func serializeTypeInfo(t *preparedType) ([]byte, error) {

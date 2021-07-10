@@ -60,6 +60,21 @@ func (this *EnumValue) Stringify() string {
 	}
 	return ""
 }
+func (this *EnumValue) RawValue() (interface{}, bool) {
+	k := this.value.Kind()
+	switch k {
+	case reflect.String:
+		return this.value.String(), false
+	case reflect.Int:
+		_, hasToString := this.value.Type().MethodByName("String")
+		if hasToString {
+			return fmt.Sprintf("%v", this.value), false
+		} else {
+			return this.value.Int(), true
+		}
+	}
+	return "", false
+}
 
 func getTypedEnumValues(t reflect.Type) []EnumValue {
 	values, err := getEnumsFromAst(t.PkgPath(), t.String())
