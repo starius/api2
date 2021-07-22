@@ -36,7 +36,7 @@ func isDate(t reflect.Type) bool {
 }
 
 func isEnum(t reflect.Type) bool {
-	return t.PkgPath() != ""
+	return t.PkgPath() != "" && t.String() != "time.Duration"
 }
 
 type PropertyState int

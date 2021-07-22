@@ -21,6 +21,12 @@
    },
    "example.EchoRequest": {
     "properties": {
+     "bar": {
+      "type": "number"
+     },
+     "code": {
+      "$ref": "#/components/schemas/example.OpCode"
+     },
      "dir": {
       "$ref": "#/components/schemas/example.Direction"
      },
@@ -68,6 +74,14 @@
      }
     },
     "type": "object"
+   },
+   "example.OpCode": {
+    "enum": [
+     3,
+     1,
+     2
+    ],
+    "type": "number"
    },
    "example.UserSettings": {}
   },
