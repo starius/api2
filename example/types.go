@@ -4,6 +4,7 @@ package example
 
 import (
 	"context"
+	"time"
 )
 
 type Direction int
@@ -38,6 +39,7 @@ type EchoRequest struct {
 	Session  string               `header:"session"`
 	Text     string               `json:"text"`
 	internal string               //nolint:structcheck,unused
+	Bar      time.Duration        `json:"bar"`
 	Code     OpCode               `json:"code"`
 	Dir      Direction            `json:"dir"`
 	Items    []CustomType2        `json:"items"`

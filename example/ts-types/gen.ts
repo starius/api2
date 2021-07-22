@@ -13,7 +13,7 @@ example: {
 				{"header":["session"]}),
 			Echo: route<example.EchoRequest, example.EchoResponse>(
 				"POST", "/echo",
-				{"header":["session"],"json":["text","code","dir","items","maps"]},
+				{"header":["session"],"json":["text","bar","code","dir","items","maps"]},
 				{"json":["text"]}),
 	},
 },
@@ -45,6 +45,7 @@ export type HelloResponse = {
 export type EchoRequest = {
 	session?: string
 	text: string
+	bar: number
 	code: example.OpCode
 	dir: example.Direction
 	items: Array<example.CustomType2> | null

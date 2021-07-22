@@ -21,6 +21,9 @@
    },
    "example.EchoRequest": {
     "properties": {
+     "bar": {
+      "type": "number"
+     },
      "code": {
       "$ref": "#/components/schemas/example.OpCode"
      },
