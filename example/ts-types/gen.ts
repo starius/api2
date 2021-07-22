@@ -13,11 +13,16 @@ example: {
 				{"header":["session"]}),
 			Echo: route<example.EchoRequest, example.EchoResponse>(
 				"POST", "/echo",
-				{"header":["session"],"json":["text","dir","items","maps"]},
+				{"header":["session"],"json":["text","code","dir","items","maps"]},
 				{"json":["text"]}),
 	},
 },
 }
+export const OpCodeEnum  = {
+    "Op_Add": ,
+    "Op_Read": ,
+    "Op_Write": ,
+} as const
 export const DirectionEnum  = {
     "East": 1,
     "North": 0,
@@ -40,11 +45,14 @@ export type HelloResponse = {
 export type EchoRequest = {
 	session?: string
 	text: string
+	code: example.OpCode
 	dir: example.Direction
 	items: Array<example.CustomType2> | null
 	maps: Record<string, example.Direction> |  null
 }
 
+
+export type OpCode = typeof OpCodeEnum[keyof typeof OpCodeEnum]
 
 export type Direction = typeof DirectionEnum[keyof typeof DirectionEnum]
 

@@ -72,12 +72,18 @@ func getTypedEnumValues(t reflect.Type) []EnumValue {
 		switch t.Kind() {
 		case reflect.String:
 			reflectValue.SetString(constant.StringVal(v.value))
-		case reflect.Int:
+		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
 			value, ok := constant.Int64Val(v.value)
 			if !ok {
 				panic("failed to convert")
 			}
 			reflectValue.SetInt(value)
+		case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint:
+			value, ok := constant.Uint64Val(v.value)
+			if !ok {
+				panic("failed to convert")
+			}
+			reflectValue.SetUint(value)
 		default:
 			// newVal := constant.Val(v)
 			// fmt.Println(reflect.TypeOf(newVal), newVal, reflectValue, v.Kind(), t)

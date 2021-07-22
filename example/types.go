@@ -15,6 +15,14 @@ const (
 	West
 )
 
+type OpCode byte
+
+const (
+	Op_Read OpCode = iota + 1
+	Op_Write
+	Op_Add
+)
+
 type UserSettings map[string]interface{}
 type CustomType struct {
 	Hell int
@@ -30,6 +38,7 @@ type EchoRequest struct {
 	Session  string               `header:"session"`
 	Text     string               `json:"text"`
 	internal string               //nolint:structcheck,unused
+	Code     OpCode               `json:"code"`
 	Dir      Direction            `json:"dir"`
 	Items    []CustomType2        `json:"items"`
 	Maps     map[string]Direction `json:"maps"`
