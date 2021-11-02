@@ -51,6 +51,19 @@ func TestValidateRequestResponse(t *testing.T) {
 		},
 		{
 			obj: struct {
+				Foo string `cookie:"foo"`
+			}{},
+			request: true,
+		},
+		{
+			obj: struct {
+				Foo string `cookie:"foo"`
+			}{},
+			request:   false,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
 				Foo string `json:"foo" query:"foo"`
 			}{},
 			request:   true,
@@ -72,7 +85,35 @@ func TestValidateRequestResponse(t *testing.T) {
 		},
 		{
 			obj: struct {
+				Foo string `json:"foo" cookie:"foo"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo string `header:"foo" cookie:"foo"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo string `cookie:"foo" query:"foo"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
 				Foo string `json:"foo" header:"foo" query:"foo"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo string `json:"foo" header:"foo" query:"foo" cookie:"foo"`
 			}{},
 			request:   true,
 			wantPanic: true,

@@ -86,17 +86,21 @@ func validateRequestResponse(structType reflect.Type, request bool) {
 		hasUseAsBody := field.Tag.Get("use_as_body") == "true"
 		hasQuery := field.Tag.Get("query") != ""
 		hasHeader := field.Tag.Get("header") != ""
+		hasCookie := field.Tag.Get("cookie") != ""
 		sum := 0
-		for _, v := range []bool{hasJson, hasUseAsBody, hasQuery, hasHeader} {
+		for _, v := range []bool{hasJson, hasUseAsBody, hasQuery, hasHeader, hasCookie} {
 			if v {
 				sum++
 			}
 		}
 		if sum > 1 {
-			panic(fmt.Sprintf("field %s of struct %s: hasJson=%v, hasUseAsBody=%v, hasQuery=%v, hasHeader=%v, want at most one to be true", field.Name, structType.Name(), hasJson, hasUseAsBody, hasQuery, hasHeader))
+			panic(fmt.Sprintf("field %s of struct %s: hasJson=%v, hasUseAsBody=%v, hasQuery=%v, hasHeader=%v, hasCookie=%v want at most one to be true", field.Name, structType.Name(), hasJson, hasUseAsBody, hasQuery, hasHeader, hasCookie))
 		}
 		if hasQuery && !request {
 			panic(fmt.Sprintf("field %s of struct %s: hasQuery=%v, but query can only be used in requests", field.Name, structType.Name(), hasQuery))
+		}
+		if hasCookie && !request {
+			panic(fmt.Sprintf("field %s of struct %s: hasCookie=%v, but cookie can only be used in requests", field.Name, structType.Name(), hasCookie))
 		}
 		if hasJson {
 			jsonFields = append(jsonFields, field.Name)

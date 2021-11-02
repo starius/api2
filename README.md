@@ -37,6 +37,9 @@ type BarRequest struct {
 	// These fields are headers.
 	FileHash string `header:"file_hash"`
 
+	// These fields are cookies.
+	Foo string `cookie:"foo"`
+
 	// These fields are skipped.
 	SkippedField int `json:"-"`
 }
@@ -57,8 +60,8 @@ func (s *Foo) Bar(ctx context.Context, req *BarRequest) (*BarResponse, error) {
 }
 ```
 
-A field must not have more than one of tags: `json`, `query`, `header`.
-Fields in query and header parts are encoded and decoded with
+A field must not have more than one of tags: `json`, `query`, `header`, `cookie`.
+Fields in query, header and cookie parts are encoded and decoded with
 `fmt.Sprintf` and `fmt.Sscanf`. Strings are not decoded with `fmt.Sscanf`,
 but passed as is. Types implementing `encoding.TextMarshaler` and
 `encoding.TextUnmarshaler` are encoded and decoded using it.
@@ -73,7 +76,7 @@ type FooRequest struct {
 	// Body of the request is JSON array of strings: ["abc", "eee", ...].
 	Body []string `use_as_body:"true"`
 
-	// You can add 'header' and 'query' fields here, but not 'json'.
+	// You can add 'header', 'query' and 'cookie' fields here, but not 'json'.
 }
 ```
 
