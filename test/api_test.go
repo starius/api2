@@ -106,6 +106,7 @@ func TestQueryAndHeader(t *testing.T) {
 		JsonField    int `json:"json_field"`
 		QueryField   int `query:"query_field"`
 		HeaderField  int `header:"query_field"`
+		CookieField  int `cookie:"cookie_field"`
 		SkippedField int `json:"-"`
 	}
 	type PostResponse struct {
@@ -120,7 +121,7 @@ func TestQueryAndHeader(t *testing.T) {
 		}
 		return &PostResponse{
 			JsonField:    req.JsonField,
-			HeaderField:  req.QueryField + req.HeaderField,
+			HeaderField:  req.QueryField + req.HeaderField + req.CookieField,
 			SkippedField: 5,
 		}, nil
 	}
@@ -143,7 +144,8 @@ func TestQueryAndHeader(t *testing.T) {
 		JsonField:    1,
 		QueryField:   2,
 		HeaderField:  3,
-		SkippedField: 4,
+		CookieField:  4,
+		SkippedField: 5,
 	})
 	if err != nil {
 		t.Errorf("POST failed: %v.", err)
@@ -152,8 +154,8 @@ func TestQueryAndHeader(t *testing.T) {
 	if postRes.JsonField != 1 {
 		t.Errorf("JsonField=%d, want 1", postRes.JsonField)
 	}
-	if postRes.HeaderField != 2+3 {
-		t.Errorf("HeaderField=%d, want %d", postRes.HeaderField, 2+3)
+	if postRes.HeaderField != 2+3+4 {
+		t.Errorf("HeaderField=%d, want %d", postRes.HeaderField, 2+3+4)
 	}
 	if postRes.SkippedField != 0 {
 		t.Errorf("SkippedField=%d, want 0", postRes.SkippedField)

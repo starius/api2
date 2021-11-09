@@ -50,7 +50,7 @@ func (h *JsonTransport) DecodeRequest(ctx context.Context, r *http.Request, req 
 	// application/x-www-form-urlencoded. This happens in curl for me.
 	ctx = context.WithValue(ctx, humanType{}, r.FormValue("human") != "")
 
-	if err := parseRequest(req, r.Body, r.URL.Query(), r.Header); err != nil {
+	if err := parseRequest(req, r.Body, r.URL.Query(), r, r.Header); err != nil {
 		return ctx, err
 	}
 
@@ -64,7 +64,7 @@ func (h *JsonTransport) EncodeResponse(ctx context.Context, w http.ResponseWrite
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	forJson, err := writeQueryAndHeader(res, nil, w.Header())
+	forJson, err := writeQueryHeaderCookie(res, nil, nil, w.Header())
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse query part of URL: %w", err)
 	}
-	forJson, err := writeQueryAndHeader(req, query, request.Header)
+	forJson, err := writeQueryHeaderCookie(req, query, request, request.Header)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (h *JsonTransport) DecodeResponse(ctx context.Context, res *http.Response, 
 		return h.ResponseDecoder(ctx, res, response)
 	}
 
-	if err := parseRequest(response, res.Body, nil, res.Header); err != nil {
+	if err := parseRequest(response, res.Body, nil, nil, res.Header); err != nil {
 		return err
 	}
 
@@ -224,6 +224,7 @@ type intMapping struct {
 type preparedType struct {
 	QueryMapping  []strMapping
 	HeaderMapping []strMapping
+	CookieMapping []strMapping
 	JsonMapping   []intMapping
 	TypeForJson   reflect.Type
 	BodyField     int
@@ -242,6 +243,7 @@ func prepare(objType reflect.Type) *preparedType {
 		}
 		queryKey := field.Tag.Get("query")
 		headerKey := field.Tag.Get("header")
+		cookieKey := field.Tag.Get("cookie")
 		isBodyField := field.Tag.Get("use_as_body") == "true"
 		if queryKey != "" {
 			p.QueryMapping = append(p.QueryMapping, strMapping{
@@ -252,6 +254,11 @@ func prepare(objType reflect.Type) *preparedType {
 			p.HeaderMapping = append(p.HeaderMapping, strMapping{
 				Field: i,
 				Key:   headerKey,
+			})
+		} else if cookieKey != "" {
+			p.CookieMapping = append(p.CookieMapping, strMapping{
+				Field: i,
+				Key:   cookieKey,
 			})
 		} else if isBodyField {
 			p.BodyField = i
@@ -296,7 +303,7 @@ func fromString(objPtr interface{}, value string) error {
 	}
 }
 
-func writeQueryAndHeader(objPtr interface{}, query url.Values, header http.Header) (interface{}, error) {
+func writeQueryHeaderCookie(objPtr interface{}, query url.Values, request *http.Request, header http.Header) (interface{}, error) {
 	objType := reflect.TypeOf(objPtr).Elem()
 	p0, has := prepared.Load(objType)
 	if !has {
@@ -311,8 +318,8 @@ func writeQueryAndHeader(objPtr interface{}, query url.Values, header http.Heade
 	if p.BodyField != noBodyField {
 		// 'use_as_body' case.
 		jsonPtr = objValue.Field(p.BodyField).Addr().Interface()
-	} else if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 {
-		// No query and header. Returning the original object.
+	} else if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 && len(p.CookieMapping) == 0 {
+		// No query, header and cookie. Returning the original object.
 		jsonPtr = objPtr
 	} else {
 		// JSON fields mixed with header and/or query fields.
@@ -339,11 +346,19 @@ func writeQueryAndHeader(objPtr interface{}, query url.Values, header http.Heade
 		}
 		header.Set(m.Key, value)
 	}
+	for _, m := range p.CookieMapping {
+		value, err := toString(objValue.Field(m.Field).Interface())
+		if err != nil {
+			field := objType.Field(m.Field)
+			return nil, fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
+		}
+		request.AddCookie(&http.Cookie{Name: m.Key, Value: value})
+	}
 
 	return jsonPtr, nil
 }
 
-func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, header http.Header) error {
+func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, request *http.Request, header http.Header) error {
 	objType := reflect.TypeOf(objPtr).Elem()
 	p0, has := prepared.Load(objType)
 	if !has {
@@ -360,10 +375,10 @@ func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, he
 		if err := json.NewDecoder(jsonReader).Decode(jsonPtr); err != nil {
 			return err
 		}
-	} else if len(p.QueryMapping)+len(p.HeaderMapping) == objType.NumField() {
-		// All the fields are query or header. No fields for JSON.
+	} else if len(p.QueryMapping)+len(p.HeaderMapping)+len(p.CookieMapping) == objType.NumField() {
+		// All the fields are query, header or cookie. No fields for JSON.
 		// In this case JSON parsing is skipped.
-	} else if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 {
+	} else if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 && len(p.CookieMapping) == 0 {
 		// No query and header. Parse JSON into the original structure.
 		if err := json.NewDecoder(jsonReader).Decode(objPtr); err != nil {
 			return err
@@ -401,6 +416,19 @@ func parseRequest(objPtr interface{}, jsonReader io.Reader, query url.Values, he
 		if err := fromString(fieldPtr, value); err != nil {
 			field := objType.Field(m.Field)
 			return fmt.Errorf("failed to parse value %q from header key %s for field %s: %w", value, m.Key, field.Name, err)
+		}
+	}
+
+	for _, m := range p.CookieMapping {
+		fieldPtr := objValue.Field(m.Field).Addr().Interface()
+		c, err := request.Cookie(m.Key)
+		value := ""
+		if err != http.ErrNoCookie {
+			value = c.Value
+		}
+		if err := fromString(fieldPtr, value); err != nil {
+			field := objType.Field(m.Field)
+			return fmt.Errorf("failed to parse value %q from cookie key %s for field %s: %w", value, m.Key, field.Name, err)
 		}
 	}
 

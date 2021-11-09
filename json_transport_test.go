@@ -41,6 +41,7 @@ func TestQueryAndHeader(t *testing.T) {
 	cases := []struct {
 		objPtr      interface{}
 		query       bool
+		request     bool
 		wantJson    string
 		replaceBody string
 		wantQuery   url.Values
@@ -175,6 +176,53 @@ func TestQueryAndHeader(t *testing.T) {
 			wantJson: `{}`,
 			wantQuery: map[string][]string{
 				"foo": []string{"|||||"},
+			},
+		},
+
+		{
+			objPtr: &struct {
+				Foo CustomType `cookie:"foo"`
+			}{
+				Foo: CustomType(5),
+			},
+			request:  true,
+			wantJson: `{}`,
+			wantHeader: map[string][]string{
+				"Cookie": []string{"foo=|||||"},
+			},
+		},
+
+		{
+			objPtr: &struct {
+				Foo int    `cookie:"foo"`
+				Bar string `header:"bar"`
+			}{
+				Foo: 5,
+				Bar: "hi",
+			},
+			request:  true,
+			wantJson: `{}`,
+			wantHeader: map[string][]string{
+				"Cookie": []string{"foo=5"},
+				"Bar":    []string{"hi"},
+			},
+		},
+
+		{
+			objPtr: &struct {
+				Foo int    `cookie:"foo"`
+				Bar string `header:"bar"`
+				Baz string `json:"baz"`
+			}{
+				Foo: 5,
+				Bar: "hi",
+				Baz: "gg",
+			},
+			request:  true,
+			wantJson: `{"baz":"gg"}`,
+			wantHeader: map[string][]string{
+				"Cookie": []string{"foo=5"},
+				"Bar":    []string{"hi"},
 			},
 		},
 
@@ -441,11 +489,18 @@ func TestQueryAndHeader(t *testing.T) {
 		if tc.query {
 			query = make(url.Values)
 		}
-		header := make(http.Header)
-
-		forJson, err := writeQueryAndHeader(tc.objPtr, query, header)
+		request, err := http.NewRequest("POST", "http://example.com", bytes.NewReader(nil))
 		if err != nil {
-			t.Errorf("case %d: writeQueryAndHeader failed: %v", i, err)
+			t.Fatalf("case %d: http.NewRequest failed: %v", i, err)
+		}
+		header := request.Header
+		if !tc.request {
+			request = nil
+		}
+
+		forJson, err := writeQueryHeaderCookie(tc.objPtr, query, request, header)
+		if err != nil {
+			t.Errorf("case %d: writeQueryHeaderCookie failed: %v", i, err)
 		}
 		jsonBytes, err := json.Marshal(forJson)
 		if err != nil {
@@ -468,7 +523,7 @@ func TestQueryAndHeader(t *testing.T) {
 		}
 
 		objPtr2 := reflect.New(reflect.TypeOf(tc.objPtr).Elem()).Interface()
-		if err := parseRequest(objPtr2, bytes.NewReader(jsonBytes), query, header); err != nil {
+		if err := parseRequest(objPtr2, bytes.NewReader(jsonBytes), query, request, header); err != nil {
 			t.Errorf("case %d: parseRequest failed: %v", i, err)
 		}
 
