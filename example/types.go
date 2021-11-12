@@ -5,6 +5,9 @@ package example
 import (
 	"context"
 	"time"
+
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Direction int
@@ -59,7 +62,17 @@ type HelloResponse struct {
 	Session string `header:"session"`
 }
 
+type SinceRequest struct {
+	Session string                 `header:"session"`
+	Body    *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
+}
+
+type SinceResponse struct {
+	Body *durationpb.Duration `use_as_body:"true" is_protobuf:"true"`
+}
+
 type IEchoService interface {
 	Hello(ctx context.Context, req *HelloRequest) (*HelloResponse, error)
 	Echo(ctx context.Context, req *EchoRequest) (*EchoResponse, error)
+	Since(ctx context.Context, req *SinceRequest) (*SinceResponse, error)
 }

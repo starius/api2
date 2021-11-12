@@ -15,6 +15,10 @@ example: {
 				"POST", "/echo",
 				{"header":["session"],"json":["text","bar","code","dir","items","maps"]},
 				{"json":["text"]}),
+			Since: route<example.SinceRequest, example.SinceResponse>(
+				"POST", "/since",
+				{"header":["session"]},
+				{}),
 	},
 },
 }
@@ -65,6 +69,15 @@ export type UserSettings = Record<string, any> |  null
 // EchoResponse.
 export type EchoResponse = {
 	text: string // field comment.
+}
+
+
+export type SinceRequest = {
+	session?: string
+}
+
+
+export type SinceResponse = {
 }
 
 

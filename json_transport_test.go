@@ -8,6 +8,10 @@ import (
 	"net/url"
 	"reflect"
 	"testing"
+	"time"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // CustomType is an integer encoded as a number of "|".
@@ -38,15 +42,21 @@ func TestQueryAndHeader(t *testing.T) {
 		Age       int    `json:"age"`
 	}
 
+	protobufSampleObject := timestamppb.New(time.Date(2020, time.July, 10, 11, 30, 0, 0, time.UTC))
+	protobufSampleBytes, err := proto.Marshal(protobufSampleObject)
+	if err != nil {
+		t.Errorf("failed to marshal protobufSampleObject: %v", err)
+	}
+
 	cases := []struct {
 		objPtr      interface{}
 		query       bool
 		request     bool
-		wantJson    string
+		wantBody    string
 		replaceBody string
 		wantQuery   url.Values
 		wantHeader  http.Header
-		dontCompare bool // For cases of non-nil empty slice or map.
+		cmpAsJson   bool // For cases of non-nil empty slice or map.
 	}{
 		{
 			objPtr: &struct {
@@ -55,7 +65,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Foo: "foo 123",
 			},
 			query:    true,
-			wantJson: `{"foo":"foo 123"}`,
+			wantBody: `{"foo":"foo 123"}`,
 		},
 		{
 			objPtr: &struct {
@@ -67,7 +77,7 @@ func TestQueryAndHeader(t *testing.T) {
 			wantQuery: map[string][]string{
 				"foo": []string{"foo 12\n3"},
 			},
-			wantJson: `{}`,
+			wantBody: `{}`,
 		},
 		{
 			objPtr: &struct {
@@ -78,7 +88,7 @@ func TestQueryAndHeader(t *testing.T) {
 			wantHeader: map[string][]string{
 				"Foo": []string{"foo 123"},
 			},
-			wantJson: `{}`,
+			wantBody: `{}`,
 		},
 
 		{
@@ -92,7 +102,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Baz: true,
 			},
 			query:    true,
-			wantJson: `{"foo":"foo!"}`,
+			wantBody: `{"foo":"foo!"}`,
 			wantQuery: map[string][]string{
 				"bar": []string{"100"},
 			},
@@ -109,7 +119,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Baz: true,
 			},
 			query:    true,
-			wantJson: `{}`,
+			wantBody: `{}`,
 			wantQuery: map[string][]string{
 				"bar": []string{"100"},
 			},
@@ -126,7 +136,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Baz: true,
 			},
 			query:       true,
-			wantJson:    `{}`,
+			wantBody:    `{}`,
 			replaceBody: " ",
 			wantQuery: map[string][]string{
 				"bar": []string{"100"},
@@ -137,7 +147,7 @@ func TestQueryAndHeader(t *testing.T) {
 		},
 		{
 			objPtr:      &struct{}{},
-			wantJson:    `{}`,
+			wantBody:    `{}`,
 			replaceBody: " ",
 		},
 
@@ -148,7 +158,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Foo: -30,
 			},
 			query:    true,
-			wantJson: `{}`,
+			wantBody: `{}`,
 			wantQuery: map[string][]string{
 				"foo": []string{"-30"},
 			},
@@ -160,7 +170,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Foo: false,
 			},
 			query:    true,
-			wantJson: `{}`,
+			wantBody: `{}`,
 			wantQuery: map[string][]string{
 				"foo": []string{"false"},
 			},
@@ -173,7 +183,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Foo: CustomType(5),
 			},
 			query:    true,
-			wantJson: `{}`,
+			wantBody: `{}`,
 			wantQuery: map[string][]string{
 				"foo": []string{"|||||"},
 			},
@@ -186,7 +196,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Foo: CustomType(5),
 			},
 			request:  true,
-			wantJson: `{}`,
+			wantBody: `{}`,
 			wantHeader: map[string][]string{
 				"Cookie": []string{"foo=|||||"},
 			},
@@ -201,7 +211,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Bar: "hi",
 			},
 			request:  true,
-			wantJson: `{}`,
+			wantBody: `{}`,
 			wantHeader: map[string][]string{
 				"Cookie": []string{"foo=5"},
 				"Bar":    []string{"hi"},
@@ -219,7 +229,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Baz: "gg",
 			},
 			request:  true,
-			wantJson: `{"baz":"gg"}`,
+			wantBody: `{"baz":"gg"}`,
 			wantHeader: map[string][]string{
 				"Cookie": []string{"foo=5"},
 				"Bar":    []string{"hi"},
@@ -232,7 +242,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: "",
 			},
-			wantJson: `{"foo":""}`,
+			wantBody: `{"foo":""}`,
 		},
 		{
 			objPtr: &struct {
@@ -240,7 +250,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: "123",
 			},
-			wantJson: `{"foo":"123"}`,
+			wantBody: `{"foo":"123"}`,
 		},
 		{
 			objPtr: &struct {
@@ -248,7 +258,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: "",
 			},
-			wantJson: `{}`,
+			wantBody: `{}`,
 		},
 		{
 			objPtr: &struct {
@@ -256,7 +266,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: 0,
 			},
-			wantJson: `{}`,
+			wantBody: `{}`,
 		},
 		{
 			objPtr: &struct {
@@ -264,7 +274,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: false,
 			},
-			wantJson: `{}`,
+			wantBody: `{}`,
 		},
 		{
 			objPtr: &struct {
@@ -272,7 +282,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: nil,
 			},
-			wantJson: `{}`,
+			wantBody: `{}`,
 		},
 		{
 			objPtr: &struct {
@@ -280,8 +290,8 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: []int{},
 			},
-			wantJson:    `{}`,
-			dontCompare: true,
+			wantBody:  `{}`,
+			cmpAsJson: true,
 		},
 		{
 			objPtr: &struct {
@@ -289,7 +299,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: nil,
 			},
-			wantJson: `{}`,
+			wantBody: `{}`,
 		},
 		{
 			objPtr: &struct {
@@ -297,8 +307,8 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: map[string]int{},
 			},
-			wantJson:    `{}`,
-			dontCompare: true,
+			wantBody:  `{}`,
+			cmpAsJson: true,
 		},
 		{
 			objPtr: &struct {
@@ -306,7 +316,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: "aaa",
 			},
-			wantJson: `{"Foo":"aaa"}`,
+			wantBody: `{"Foo":"aaa"}`,
 		},
 		{
 			objPtr: &struct {
@@ -314,7 +324,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: "aaa",
 			},
-			wantJson: `{"Foo":"aaa"}`,
+			wantBody: `{"Foo":"aaa"}`,
 		},
 		{
 			objPtr: &struct {
@@ -322,7 +332,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: "aaa",
 			},
-			wantJson: `{"Foo":"aaa"}`,
+			wantBody: `{"Foo":"aaa"}`,
 		},
 		{
 			objPtr: &struct {
@@ -330,7 +340,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: "",
 			},
-			wantJson: `{}`,
+			wantBody: `{}`,
 		},
 		{
 			objPtr: &struct {
@@ -338,7 +348,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: "",
 			},
-			wantJson: `{}`,
+			wantBody: `{}`,
 		},
 		{
 			objPtr: &struct {
@@ -346,7 +356,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: "ggg",
 			},
-			wantJson: `{"-":"ggg"}`,
+			wantBody: `{"-":"ggg"}`,
 		},
 		{
 			objPtr: &struct {
@@ -354,7 +364,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: "",
 			},
-			wantJson: `{"-":""}`,
+			wantBody: `{"-":""}`,
 		},
 		{
 			objPtr: &struct {
@@ -362,7 +372,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Foo: "",
 			},
-			wantJson: `{}`,
+			wantBody: `{}`,
 		},
 
 		{
@@ -373,7 +383,7 @@ func TestQueryAndHeader(t *testing.T) {
 					Foo: "aaa",
 				},
 			},
-			wantJson: `{"foo":"aaa"}`,
+			wantBody: `{"foo":"aaa"}`,
 		},
 
 		{
@@ -382,7 +392,7 @@ func TestQueryAndHeader(t *testing.T) {
 			}{
 				Body: []int{1, 2, 3},
 			},
-			wantJson: `[1,2,3]`,
+			wantBody: `[1,2,3]`,
 		},
 		{
 			objPtr: &struct {
@@ -393,7 +403,7 @@ func TestQueryAndHeader(t *testing.T) {
 					"key2": 200,
 				},
 			},
-			wantJson: `{"key1":100,"key2":200}`,
+			wantBody: `{"key1":100,"key2":200}`,
 		},
 		{
 			objPtr: &struct {
@@ -405,7 +415,7 @@ func TestQueryAndHeader(t *testing.T) {
 					"key2": 200,
 				},
 			},
-			wantJson: `{"key1":100,"key2":200}`,
+			wantBody: `{"key1":100,"key2":200}`,
 		},
 		{
 			objPtr: &struct {
@@ -417,7 +427,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Bar:  500,
 				Baz:  true,
 			},
-			wantJson: `[1,2,3]`,
+			wantBody: `[1,2,3]`,
 			query:    true,
 		},
 		{
@@ -431,7 +441,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Bar:  500,
 				Baz:  true,
 			},
-			wantJson: `[1,2,3]`,
+			wantBody: `[1,2,3]`,
 			query:    true,
 		},
 		{
@@ -443,7 +453,7 @@ func TestQueryAndHeader(t *testing.T) {
 					{FirstName: "Petr", LastName: "Petrov", Age: 75},
 				},
 			},
-			wantJson: `[{"first_name":"Ivan","last_name":"Ivanov","age":55},{"first_name":"Petr","last_name":"Petrov","age":75}]`,
+			wantBody: `[{"first_name":"Ivan","last_name":"Ivanov","age":55},{"first_name":"Petr","last_name":"Petrov","age":75}]`,
 		},
 		{
 			objPtr: &struct {
@@ -458,7 +468,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Bar: 500,
 				Baz: true,
 			},
-			wantJson: `[{"first_name":"Ivan","last_name":"Ivanov","age":55},{"first_name":"Petr","last_name":"Petrov","age":75}]`,
+			wantBody: `[{"first_name":"Ivan","last_name":"Ivanov","age":55},{"first_name":"Petr","last_name":"Petrov","age":75}]`,
 			query:    true,
 		},
 		{
@@ -469,7 +479,7 @@ func TestQueryAndHeader(t *testing.T) {
 					"ivan.ivanov": {FirstName: "Ivan", LastName: "Ivanov", Age: 55},
 				},
 			},
-			wantJson: `{"ivan.ivanov":{"first_name":"Ivan","last_name":"Ivanov","age":55}}`,
+			wantBody: `{"ivan.ivanov":{"first_name":"Ivan","last_name":"Ivanov","age":55}}`,
 		},
 		{
 			objPtr: &struct {
@@ -480,7 +490,18 @@ func TestQueryAndHeader(t *testing.T) {
 					"ivan.ivanov": {FirstName: "Ivan", LastName: "Ivanov", Age: 55},
 				},
 			},
-			wantJson: `{"ivan.ivanov":{"first_name":"Ivan","last_name":"Ivanov","age":55}}`,
+			wantBody: `{"ivan.ivanov":{"first_name":"Ivan","last_name":"Ivanov","age":55}}`,
+		},
+
+		{
+			objPtr: &struct {
+				Foo *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
+			}{
+				Foo: protobufSampleObject,
+			},
+			query:     true,
+			wantBody:  string(protobufSampleBytes),
+			cmpAsJson: true,
 		},
 	}
 
@@ -498,37 +519,62 @@ func TestQueryAndHeader(t *testing.T) {
 			request = nil
 		}
 
-		forJson, err := writeQueryHeaderCookie(tc.objPtr, query, request, header)
-		if err != nil {
+		var bodyBuffer bytes.Buffer
+		if err := writeQueryHeaderCookie(&bodyBuffer, tc.objPtr, query, request, header, false); err != nil {
 			t.Errorf("case %d: writeQueryHeaderCookie failed: %v", i, err)
 		}
-		jsonBytes, err := json.Marshal(forJson)
-		if err != nil {
-			t.Errorf("case %d: json.Marshal failed: %v", i, err)
-		}
+		bodyBytes := bytes.TrimSpace(bodyBuffer.Bytes())
 
-		jsonStr := string(jsonBytes)
-		if jsonStr != tc.wantJson {
-			t.Errorf("case %d: got json %s, want %s", i, jsonStr, tc.wantJson)
+		bodyStr := string(bodyBytes)
+		if bodyStr != tc.wantBody {
+			t.Errorf("case %d: got body %s (%v), want %s", i, bodyStr, bodyBytes, tc.wantBody)
 		}
 		if tc.query && tc.wantQuery != nil && !reflect.DeepEqual(query, tc.wantQuery) {
 			t.Errorf("case %d: query does not match, got %#v, want %#v", i, query, tc.wantQuery)
 		}
-		if tc.wantHeader != nil && !reflect.DeepEqual(header, tc.wantHeader) {
-			t.Errorf("case %d: header does not match, got %#v, want %#v", i, header, tc.wantHeader)
+		if tc.wantHeader != nil {
+			delete(header, "Accept")
+			delete(header, "Content-Type")
+			if !reflect.DeepEqual(header, tc.wantHeader) {
+				t.Errorf("case %d: header does not match, got %#v, want %#v", i, header, tc.wantHeader)
+			}
 		}
 
 		if tc.replaceBody != "" {
-			jsonBytes = []byte(tc.replaceBody)
+			bodyBytes = []byte(tc.replaceBody)
 		}
 
 		objPtr2 := reflect.New(reflect.TypeOf(tc.objPtr).Elem()).Interface()
-		if err := parseRequest(objPtr2, bytes.NewReader(jsonBytes), query, request, header); err != nil {
+		if err := parseRequest(objPtr2, bytes.NewReader(bodyBytes), query, request, header); err != nil {
 			t.Errorf("case %d: parseRequest failed: %v", i, err)
 		}
 
-		if !tc.dontCompare && !reflect.DeepEqual(objPtr2, tc.objPtr) {
-			t.Errorf("case %d: decoded object is not equal to source object: %#v != %#v", i, objPtr2, tc.objPtr)
+		gotJson, err := json.MarshalIndent(objPtr2, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+		wantJson, err := json.MarshalIndent(tc.objPtr, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+
+		var equal bool
+		if tc.cmpAsJson {
+			equal = bytes.Equal(gotJson, wantJson)
+		} else {
+			equal = reflect.DeepEqual(objPtr2, tc.objPtr)
+		}
+
+		if !equal {
+			gotJson, err := json.MarshalIndent(objPtr2, "", "  ")
+			if err != nil {
+				panic(err)
+			}
+			wantJson, err := json.MarshalIndent(tc.objPtr, "", "  ")
+			if err != nil {
+				panic(err)
+			}
+			t.Errorf("case %d: decoded object is not equal to source object:\n got: %#v, %s\n want: %#v, %s", i, objPtr2, gotJson, tc.objPtr, wantJson)
 		}
 	}
 }
