@@ -14,6 +14,7 @@ type Client struct {
 	baseURL       string
 	errorf        func(format string, args ...interface{})
 	authorization string
+	maxBody       int64
 }
 
 type signature struct {
@@ -67,6 +68,7 @@ func NewClient(routes []Route, baseURL string, opts ...Option) *Client {
 		baseURL:       baseURL,
 		errorf:        config.errorf,
 		authorization: config.authorization,
+		maxBody:       config.maxBody,
 	}
 }
 
@@ -104,6 +106,7 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
+	res.Body = http.MaxBytesReader(nil, res.Body, c.maxBody)
 	defer func() {
 		if err := res.Body.Close(); err != nil {
 			c.errorf("failed to close resource: %v", err)

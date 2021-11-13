@@ -50,6 +50,7 @@ func BindRoutes(mux *http.ServeMux, routes []Route, opts ...Option) {
 				}
 				return
 			}
+			r.Body = http.MaxBytesReader(w, r.Body, config.maxBody)
 			handler(w, r)
 		})
 	}
