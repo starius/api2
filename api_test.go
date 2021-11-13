@@ -4,6 +4,9 @@ import (
 	"context"
 	"reflect"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestValidateRequestResponse(t *testing.T) {
@@ -62,6 +65,7 @@ func TestValidateRequestResponse(t *testing.T) {
 			request:   false,
 			wantPanic: true,
 		},
+
 		{
 			obj: struct {
 				Foo string `json:"foo" query:"foo"`
@@ -114,6 +118,49 @@ func TestValidateRequestResponse(t *testing.T) {
 		{
 			obj: struct {
 				Foo string `json:"foo" header:"foo" query:"foo" cookie:"foo"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+
+		{
+			obj: struct {
+				Foo *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
+			}{},
+			request:   true,
+			wantPanic: false,
+		},
+		{
+			obj: struct {
+				Foo *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
+			}{},
+			request:   false,
+			wantPanic: false,
+		},
+		{
+			obj: struct {
+				AnyProtobuf proto.Message `use_as_body:"true" is_protobuf:"true"`
+			}{},
+			request:   true,
+			wantPanic: false,
+		},
+		{
+			obj: struct {
+				AnyProtobuf proto.Message `use_as_body:"true" is_protobuf:"true"`
+			}{},
+			request:   false,
+			wantPanic: false,
+		},
+		{
+			obj: struct {
+				Foo string `use_as_body:"true" is_protobuf:"true"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo *timestamppb.Timestamp `is_protobuf:"true"`
 			}{},
 			request:   true,
 			wantPanic: true,

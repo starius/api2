@@ -43,3 +43,12 @@ func (c *Client) Echo(ctx context.Context, req *EchoRequest) (res *EchoResponse,
 	}
 	return
 }
+
+func (c *Client) Since(ctx context.Context, req *SinceRequest) (res *SinceResponse, err error) {
+	res = &SinceResponse{}
+	err = c.api2client.Call(ctx, res, req)
+	if err != nil {
+		return nil, err
+	}
+	return
+}

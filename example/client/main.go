@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/starius/api2/example"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func main() {
@@ -29,6 +31,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
 	fmt.Println(echoRes.Text)
+
+	sinceRes, err := client.Since(ctx, &example.SinceRequest{
+		Session: helloRes.Session,
+		Body:    timestamppb.New(time.Date(2020, time.July, 10, 11, 30, 0, 0, time.UTC)),
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(sinceRes.Body.AsDuration())
 }

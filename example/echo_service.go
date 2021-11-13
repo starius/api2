@@ -5,6 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"time"
+
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 type EchoRepository struct {
@@ -59,5 +62,17 @@ func (s *EchoService) Echo(ctx context.Context, req *EchoRequest) (*EchoResponse
 	}
 	return &EchoResponse{
 		Text: req.Text,
+	}, nil
+}
+
+func (s *EchoService) Since(ctx context.Context, req *SinceRequest) (*SinceResponse, error) {
+	if !s.sessions[req.Session] {
+		return nil, fmt.Errorf("bad session")
+	}
+	t1 := time.Date(2010, time.July, 10, 11, 30, 0, 0, time.UTC)
+	t2 := req.Body.AsTime()
+	duration := t2.Sub(t1)
+	return &SinceResponse{
+		Body: durationpb.New(duration),
 	}, nil
 }

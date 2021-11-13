@@ -163,20 +163,22 @@ func serializeTypeInfo(t *preparedType) ([]byte, error) {
 	for _, v := range t.QueryMapping {
 		res.Query = append(res.Query, v.Key)
 	}
-	for i := 0; i < t.TypeForJson.NumField(); i++ {
-		ft := t.TypeForJson.Field(i)
-		tag, err := typegen.ParseStructTag(ft.Tag)
-		if err != nil {
-			return nil, err
+	if t.TypeForJson != nil {
+		for i := 0; i < t.TypeForJson.NumField(); i++ {
+			ft := t.TypeForJson.Field(i)
+			tag, err := typegen.ParseStructTag(ft.Tag)
+			if err != nil {
+				return nil, err
+			}
+			if tag.State == typegen.Ignored || tag.State == typegen.NoInfo {
+				continue
+			}
+			name := ft.Name
+			if tag.FieldName != "" {
+				name = tag.FieldName
+			}
+			res.Json = append(res.Json, name)
 		}
-		if tag.State == typegen.Ignored || tag.State == typegen.NoInfo {
-			continue
-		}
-		name := ft.Name
-		if tag.FieldName != "" {
-			name = tag.FieldName
-		}
-		res.Json = append(res.Json, name)
 	}
 	return json.Marshal(res)
 }

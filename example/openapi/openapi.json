@@ -83,6 +83,17 @@
     ],
     "type": "number"
    },
+   "example.SinceRequest": {
+    "properties": {
+     "session": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "example.SinceResponse": {
+    "type": "object"
+   },
    "example.UserSettings": {}
   },
   "requestBodies": {
@@ -100,6 +111,15 @@
      "application/json": {
       "schema": {
        "$ref": "#/components/schemas/example.HelloRequest"
+      }
+     }
+    }
+   },
+   "example.SinceRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.SinceRequest"
       }
      }
     }
@@ -147,6 +167,31 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/example.HelloResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "example"
+    ]
+   }
+  },
+  "/since": {
+   "post": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/example.SinceRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/example.SinceResponse"
         }
        }
       },

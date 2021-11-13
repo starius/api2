@@ -64,6 +64,10 @@ in your struct with tag `use_as_body:"true"`:
 		// You can add 'header', 'query' and 'cookie' fields here, but not 'json'.
 	}
 
+If you use `use_as_body:"true"`, you can also set `is_protobuf:"true"`
+and put a protobuf type (convertible to proto.Message) in that field.
+It will be sent over wire as protobuf binary form.
+
 Now let's write the function that generates the table of routes:
 
 	func GetRoutes(s *Foo) []api2.Route {

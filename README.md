@@ -80,6 +80,10 @@ type FooRequest struct {
 }
 ```
 
+If you use `use_as_body:"true"`, you can also set `is_protobuf:"true"`
+and put a protobuf type (convertible to proto.Message) in that field.
+It will be sent over wire as protobuf binary form.
+
 Now let's write the function that generates the table of routes:
 
 ```go
@@ -168,6 +172,7 @@ $ go get github.com/starius/api2/example/...
 $ server &
 $ client
 test
+87672h0m0s
 ```
 
 Code generation code is located in directory [example/gen](./example/gen).
