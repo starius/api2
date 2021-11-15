@@ -5,9 +5,14 @@ import (
 	"reflect"
 	"testing"
 
+	"go.uber.org/goleak"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
+}
 
 func TestValidateRequestResponse(t *testing.T) {
 	cases := []struct {
