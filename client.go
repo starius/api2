@@ -120,3 +120,8 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 		return t.DecodeError(req.Context(), res)
 	}
 }
+
+func (c *Client) Close() error {
+	c.client.CloseIdleConnections()
+	return nil
+}

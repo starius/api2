@@ -142,6 +142,10 @@ func NewClient(baseURL string, opts ...api2.Option) (*Client, error) {
 		api2client: api2client,
 	}, nil
 }
+
+func (c *Client) Close() error {
+	return c.api2client.Close()
+}
 {{ range .Methods }}
 func (c *Client) {{ .Name }}(ctx context.Context, req *{{ .Request }}) (res *{{ .Response }}, err error) {
 	res = &{{ .Response }}{}
