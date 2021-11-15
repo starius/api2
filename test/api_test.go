@@ -9,7 +9,12 @@ import (
 	"testing"
 
 	"github.com/starius/api2"
+	"go.uber.org/goleak"
 )
+
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m)
+}
 
 func TestAPI(t *testing.T) {
 	badNumber := 42 // State of the server.
