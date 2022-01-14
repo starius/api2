@@ -290,6 +290,8 @@ func fromString(objPtr interface{}, value string) error {
 	} else if fieldStrPtr, ok := objPtr.(*string); ok {
 		*fieldStrPtr = value
 		return nil
+	} else if value == "" {
+		return nil
 	} else {
 		_, err := fmt.Sscanf(value, "%v", objPtr)
 		return err
