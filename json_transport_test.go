@@ -49,14 +49,16 @@ func TestQueryAndHeader(t *testing.T) {
 	}
 
 	cases := []struct {
-		objPtr      interface{}
-		query       bool
-		request     bool
-		wantBody    string
-		replaceBody string
-		wantQuery   url.Values
-		wantHeader  http.Header
-		cmpAsJson   bool // For cases of non-nil empty slice or map.
+		objPtr        interface{}
+		query         bool
+		request       bool
+		wantBody      string
+		replaceBody   string
+		wantQuery     url.Values
+		replaceQuery  url.Values
+		wantHeader    http.Header
+		replaceHeader http.Header
+		cmpAsJson     bool // For cases of non-nil empty slice or map.
 	}{
 		{
 			objPtr: &struct {
@@ -234,6 +236,26 @@ func TestQueryAndHeader(t *testing.T) {
 				"Cookie": []string{"foo=5"},
 				"Bar":    []string{"hi"},
 			},
+		},
+
+		// Empty values.
+		{
+			objPtr: &struct {
+				CookieInt    int    `cookie:"cookie_int"`
+				CookieBool   bool   `cookie:"cookie_bool"`
+				CookieString string `cookie:"cookie_string"`
+				QueryInt     int    `query:"query_int"`
+				QueryBool    bool   `query:"query_bool"`
+				QueryString  string `query:"query_string"`
+				HeaderInt    int    `header:"header_int"`
+				HeaderBool   bool   `header:"header_bool"`
+				HeaderString string `header:"header_string"`
+			}{},
+			request:       true,
+			query:         true,
+			wantBody:      `{}`,
+			replaceHeader: map[string][]string{},
+			replaceQuery:  map[string][]string{},
 		},
 
 		{
@@ -542,6 +564,12 @@ func TestQueryAndHeader(t *testing.T) {
 
 		if tc.replaceBody != "" {
 			bodyBytes = []byte(tc.replaceBody)
+		}
+		if tc.replaceHeader != nil {
+			header = tc.replaceHeader
+		}
+		if tc.replaceQuery != nil {
+			query = tc.replaceQuery
 		}
 
 		objPtr2 := reflect.New(reflect.TypeOf(tc.objPtr).Elem()).Interface()
