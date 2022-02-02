@@ -10,7 +10,7 @@ import (
 // Client is used on client-side to call remote methods provided by the API.
 type Client struct {
 	routeMap      map[signature]Route
-	client        *http.Client
+	client        HttpClient
 	baseURL       string
 	errorf        func(format string, args ...interface{})
 	authorization string
@@ -30,7 +30,8 @@ type signature struct {
 // All pairs of (request type, response type) must be unique in the table
 // of routes.
 func NewClient(routes []Route, baseURL string, opts ...Option) *Client {
-	client := &http.Client{
+	var client HttpClient
+	client = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
