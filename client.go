@@ -3,6 +3,7 @@ package api2
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"reflect"
 )
@@ -124,5 +125,12 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 
 func (c *Client) Close() error {
 	c.client.CloseIdleConnections()
+
+	if closer, ok := c.client.(io.Closer); ok {
+		if err := closer.Close(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
