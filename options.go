@@ -5,10 +5,15 @@ import (
 	"net/http"
 )
 
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+	CloseIdleConnections()
+}
+
 type Config struct {
 	errorf        func(format string, args ...interface{})
 	authorization string // Affects only clients.
-	client        *http.Client
+	client        HttpClient
 	maxBody       int64
 }
 
@@ -35,7 +40,7 @@ func AuthorizationHeader(authorization string) Option {
 	}
 }
 
-func CustomClient(client *http.Client) Option {
+func CustomClient(client HttpClient) Option {
 	return func(config *Config) {
 		config.client = client
 	}
