@@ -1,6 +1,7 @@
 package api2
 
 import (
+	"context"
 	"log"
 	"net/http"
 )
@@ -15,6 +16,7 @@ type Config struct {
 	authorization string // Affects only clients.
 	client        HttpClient
 	maxBody       int64
+	hooks         Hooks
 }
 
 const defaultMaxBody = 10 * 1024 * 1024
@@ -49,5 +51,15 @@ func CustomClient(client HttpClient) Option {
 func MaxBody(maxBody int64) Option {
 	return func(config *Config) {
 		config.maxBody = maxBody
+	}
+}
+
+type Hooks interface {
+	BeforeCall(ctx context.Context, r *http.Request, req interface{}) (context.Context, error)
+}
+
+func SetHooks(h Hooks) Option {
+	return func(config *Config) {
+		config.hooks = h
 	}
 }

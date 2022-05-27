@@ -39,7 +39,7 @@ func BindRoutes(mux *http.ServeMux, routes []Route, opts ...Option) {
 			if _, has := method2handler[route.Method]; has {
 				panic(fmt.Sprintf("Duplicate pair (%s, %s)", path, route.Method))
 			}
-			method2handler[route.Method] = newHTTPHandler(route.Handler, route.Transport, errorf)
+			method2handler[route.Method] = newHTTPHandler(route.Handler, route.Transport, errorf, config.hooks)
 		}
 
 		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +84,7 @@ func GetMatcher(routes []Route) func(*http.Request) (*Route, bool) {
 	}
 }
 
-func newHTTPHandler(h interface{}, t Transport, errorf func(format string, args ...interface{})) http.HandlerFunc {
+func newHTTPHandler(h interface{}, t Transport, errorf func(format string, args ...interface{}), hooks Hooks) http.HandlerFunc {
 	if t == nil {
 		t = DefaultTransport
 	}
@@ -112,7 +112,14 @@ func newHTTPHandler(h interface{}, t Transport, errorf func(format string, args 
 			}
 			return
 		}
-
+		if hooks != nil {
+			ctxNew, err := hooks.BeforeCall(ctx, r, req)
+			if err != nil {
+				errorf("%s %s BeforeCall hook failed: %v", r.Method, r.URL.Path, err)
+				return
+			}
+			ctx = ctxNew
+		}
 		results := handlerValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)})
 		resp := results[0].Interface()
 		errReflect := results[1].Interface()

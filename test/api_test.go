@@ -52,7 +52,7 @@ func TestAPI(t *testing.T) {
 	}
 
 	mux := http.NewServeMux()
-	api2.BindRoutes(mux, routes)
+	api2.BindRoutes(mux, routes, api2.SetHooks(&Hooks{}))
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
@@ -104,6 +104,13 @@ func TestAPI(t *testing.T) {
 	if getRes.DoubleNumber != 84 {
 		t.Errorf("GET(42) returned %d, want %d.", getRes.DoubleNumber, 84)
 	}
+}
+
+type Hooks struct {
+}
+
+func (h *Hooks) BeforeCall(ctx context.Context, r *http.Request, req interface{}) (context.Context, error) {
+	return ctx, nil
 }
 
 func TestQueryAndHeader(t *testing.T) {
