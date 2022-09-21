@@ -24,4 +24,9 @@ func main() {
 			&example.CustomType2{},
 		},
 	})
+	api2.GenerateYamlClient(&api2.YamlTypesGenConfig{
+		OutDir: "./rego",
+		Routes: []interface{}{example.GetRoutes},
+	})
+
 }
