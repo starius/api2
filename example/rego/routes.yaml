@@ -1,0 +1,12 @@
+
+example:
+  IEchoService:
+    Hello:
+      method: "POST"
+      path: "/hello"
+    Echo:
+      method: "POST"
+      path: "/echo"
+    Since:
+      method: "POST"
+      path: "/since"
