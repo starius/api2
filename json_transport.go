@@ -24,7 +24,8 @@ import (
 // pretty formatted.
 //
 // To redefine some methods, set corresponding fields in the struct:
-//  &JsonTransport{RequestDecoder: func ...
+//
+//	&JsonTransport{RequestDecoder: func ...
 type JsonTransport struct {
 	RequestDecoder  func(context.Context, *http.Request, interface{}) (context.Context, error)
 	ResponseEncoder func(context.Context, http.ResponseWriter, interface{}) error

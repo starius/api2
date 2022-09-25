@@ -9,7 +9,7 @@ import (
 const RefSchemaPrefix = "#/components/schemas/"
 const RefReqPrefix = "#/components/requestBodies/"
 
-func PrintSwagger(p *Parser, swag *spec.Swagger) {
+func PrintSwagger(p *Parser, swag *spec.T) {
 	def := spec.Schemas{}
 
 	for _, st := range p.seen {

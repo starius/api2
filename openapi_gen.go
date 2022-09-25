@@ -29,7 +29,7 @@ func GenerateOpenApiSpec(options *TypesGenConfig) {
 	}
 
 	parser.ParseRaw(options.Types...)
-	swag := spec.Swagger{
+	swag := spec.T{
 		OpenAPI: "3.0.0",
 		Info: &spec.Info{
 			Version: "3.0.0",
@@ -48,7 +48,7 @@ func GenerateOpenApiSpec(options *TypesGenConfig) {
 	panicIf(err)
 }
 
-func genOpenApiRoutes(w io.Writer, routes []Route, p *typegen.Parser, options *TypesGenConfig, swagger *spec.Swagger) {
+func genOpenApiRoutes(w io.Writer, routes []Route, p *typegen.Parser, options *TypesGenConfig, swagger *spec.T) {
 	type routeDef struct {
 		Method      string
 		Path        string
