@@ -1,10 +1,12 @@
 package example
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -63,6 +65,23 @@ func (s *EchoService) Echo(ctx context.Context, req *EchoRequest) (*EchoResponse
 	return &EchoResponse{
 		Text: req.Text,
 	}, nil
+}
+
+func (s *EchoService) StreamBody(ctx context.Context, req *StreamRequest) (*StreamResponse, error) {
+	var b bytes.Buffer
+	for {
+		buf := make([]byte, 1024)
+		n, err := req.Body.Read(buf)
+		b.Write(buf[:n])
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+	}
+	defer req.Body.Close()
+	return &StreamResponse{}, nil
 }
 
 func (s *EchoService) Since(ctx context.Context, req *SinceRequest) (*SinceResponse, error) {

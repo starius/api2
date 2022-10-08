@@ -110,8 +110,10 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 	}
 	res.Body = http.MaxBytesReader(nil, res.Body, c.maxBody)
 	defer func() {
-		if err := res.Body.Close(); err != nil {
-			c.errorf("failed to close resource: %v", err)
+		if reflect.TypeOf(t).Elem().Name() != "StreamTransport" {
+			if err := res.Body.Close(); err != nil {
+				c.errorf("failed to close resource: %v", err)
+			}
 		}
 	}()
 

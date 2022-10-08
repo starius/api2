@@ -19,6 +19,10 @@ example: {
 				"POST", "/since",
 				{"header":["session"]},
 				{}),
+			StreamBody: route<example.StreamRequest, example.StreamResponse>(
+				"POST", "/stream",
+				{"header":["authorization"]},
+				{}),
 	},
 },
 }
@@ -78,6 +82,15 @@ export type SinceRequest = {
 
 
 export type SinceResponse = {
+}
+
+
+export type StreamRequest = {
+	authorization?: string
+}
+
+
+export type StreamResponse = {
 }
 
 
