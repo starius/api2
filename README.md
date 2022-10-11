@@ -169,7 +169,7 @@ To build and run it:
 
 ```
 $ go get github.com/starius/api2/example/...
-$ server &
+$ app &
 $ client
 test
 87672h0m0s
