@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
 	"github.com/starius/api2/example"
@@ -41,4 +43,20 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(sinceRes.Body.AsDuration())
+
+	streamRes, err := client.Stream(ctx, &example.StreamRequest{
+		Session: helloRes.Session,
+		Body:    io.NopCloser(strings.NewReader("abc xyz")),
+	})
+	if err != nil {
+		panic(err)
+	}
+	streamResBytes, err := io.ReadAll(streamRes.Body)
+	if err != nil {
+		panic(err)
+	}
+	if err := streamRes.Body.Close(); err != nil {
+		panic(err)
+	}
+	fmt.Println(string(streamResBytes))
 }

@@ -69,7 +69,11 @@ func (h *JsonTransport) EncodeResponse(ctx context.Context, w http.ResponseWrite
 	if humanValue := ctx.Value(humanType{}); humanValue != nil {
 		human = humanValue.(bool)
 	}
-	return writeQueryHeaderCookie(w, res, nil, nil, w.Header(), human)
+	body, err := writeQueryHeaderCookie(w, res, nil, nil, w.Header(), human)
+	if body != nil {
+		panic("unexpected body")
+	}
+	return err
 }
 
 type HttpError interface {
@@ -111,19 +115,24 @@ func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string
 		return nil, fmt.Errorf("failed to parse query part of URL: %w", err)
 	}
 	var requestBodyBuffer bytes.Buffer
-	if err := writeQueryHeaderCookie(&requestBodyBuffer, req, query, request, request.Header, false); err != nil {
+	body, err := writeQueryHeaderCookie(&requestBodyBuffer, req, query, request, request.Header, false)
+	if err != nil {
 		return nil, err
 	}
 	request.URL.RawQuery = query.Encode()
 
-	requestBody := requestBodyBuffer.Bytes()
-	body := bytes.NewReader(requestBody)
-	snapshot := *body
-	request.ContentLength = int64(len(requestBody))
-	request.Body = ioutil.NopCloser(body)
-	request.GetBody = func() (io.ReadCloser, error) {
-		r := snapshot
-		return ioutil.NopCloser(&r), nil
+	if body != nil {
+		request.Body = body
+	} else {
+		requestBody := requestBodyBuffer.Bytes()
+		body := bytes.NewReader(requestBody)
+		snapshot := *body
+		request.ContentLength = int64(len(requestBody))
+		request.Body = ioutil.NopCloser(body)
+		request.GetBody = func() (io.ReadCloser, error) {
+			r := snapshot
+			return ioutil.NopCloser(&r), nil
+		}
 	}
 
 	return request, nil
@@ -203,6 +212,18 @@ func (h *JsonTransport) jsonError(w http.ResponseWriter, code int, err error) er
 	return json.NewEncoder(w).Encode(msg)
 }
 
+func (h *JsonTransport) BodyCloseNeeded(ctx context.Context, response, request interface{}) bool {
+	objType := reflect.TypeOf(response).Elem()
+	p0, has := prepared.Load(objType)
+	if !has {
+		p0 = prepare(objType)
+		prepared.Store(objType, p0)
+	}
+	p := p0.(*preparedType)
+
+	return !p.Stream
+}
+
 type strMapping struct {
 	Field int
 	Key   string
@@ -221,6 +242,7 @@ type preparedType struct {
 	TypeForJson   reflect.Type
 	BodyField     int
 	Protobuf      bool
+	Stream        bool
 }
 
 const noBodyField = -1
@@ -240,6 +262,7 @@ func prepare(objType reflect.Type) *preparedType {
 		isBodyField := field.Tag.Get("use_as_body") == "true"
 		if isBodyField {
 			p.Protobuf = field.Tag.Get("is_protobuf") == "true"
+			p.Stream = field.Tag.Get("is_stream") == "true"
 		}
 		if queryKey != "" {
 			p.QueryMapping = append(p.QueryMapping, strMapping{
@@ -301,7 +324,7 @@ func fromString(objPtr interface{}, value string) error {
 	}
 }
 
-func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, request *http.Request, header http.Header, human bool) error {
+func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, request *http.Request, header http.Header, human bool) (io.ReadCloser, error) {
 	header.Set("Content-Type", "application/json; charset=UTF-8")
 	if request != nil {
 		request.Header.Set("Accept", "application/json")
@@ -321,7 +344,7 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 	if p.BodyField != noBodyField {
 		// 'use_as_body' case.
 		fieldValue := objValue.Field(p.BodyField)
-		if fieldValue.Kind() != reflect.Ptr {
+		if !p.Stream && fieldValue.Kind() != reflect.Ptr {
 			// Take a pointer if the field is not a pointer.
 			// Protobuf does not parse into a double pointer,
 			// that is why the check is needed.
@@ -344,7 +367,7 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 		value, err := toString(objValue.Field(m.Field).Interface())
 		if err != nil {
 			field := objType.Field(m.Field)
-			return fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
+			return nil, fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
 		}
 		query.Set(m.Key, value)
 	}
@@ -352,7 +375,7 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 		value, err := toString(objValue.Field(m.Field).Interface())
 		if err != nil {
 			field := objType.Field(m.Field)
-			return fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
+			return nil, fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
 		}
 		header.Set(m.Key, value)
 	}
@@ -360,7 +383,7 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 		value, err := toString(objValue.Field(m.Field).Interface())
 		if err != nil {
 			field := objType.Field(m.Field)
-			return fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
+			return nil, fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
 		}
 		request.AddCookie(&http.Cookie{Name: m.Key, Value: value})
 	}
@@ -372,20 +395,43 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 		}
 		protoData, err := proto.Marshal(bodyPtrMessage)
 		if err != nil {
-			return fmt.Errorf("failed to marshal protobuf: %w", err)
+			return nil, fmt.Errorf("failed to marshal protobuf: %w", err)
 		}
 		_, err = w.Write(protoData)
-		return err
+		return nil, err
+	} else if p.Stream {
+		if bodyPtr == nil {
+			bodyPtr = io.NopCloser(bytes.NewReader(nil))
+		}
+		bodyReadCloser := bodyPtr.(io.ReadCloser)
+		if request != nil {
+			// Client. Pass body reader to http.Request.Body.
+			return bodyReadCloser, nil
+		} else {
+			// Server. Copy the body to w.
+			_, err1 := io.Copy(w, bodyReadCloser)
+			err2 := bodyReadCloser.Close()
+			if err1 != nil && err2 != nil {
+				return nil, fmt.Errorf("failed to write response body (error: %w) and close body reader (error: %v)", err1, err2)
+			}
+			if err1 != nil {
+				return nil, fmt.Errorf("failed to write response body: %w", err1)
+			}
+			if err2 != nil {
+				return nil, fmt.Errorf("failed to close response reader: %w", err2)
+			}
+			return nil, nil
+		}
 	} else {
 		encoder := json.NewEncoder(w)
 		if human {
 			encoder.SetIndent("", "  ")
 		}
-		return encoder.Encode(bodyPtr)
+		return nil, encoder.Encode(bodyPtr)
 	}
 }
 
-func parseRequest(objPtr interface{}, bodyReader io.Reader, query url.Values, request *http.Request, header http.Header) error {
+func parseRequest(objPtr interface{}, bodyReadCloser io.ReadCloser, query url.Values, request *http.Request, header http.Header) error {
 	objType := reflect.TypeOf(objPtr).Elem()
 	p0, has := prepared.Load(objType)
 	if !has {
@@ -399,14 +445,16 @@ func parseRequest(objPtr interface{}, bodyReader io.Reader, query url.Values, re
 	if p.BodyField != noBodyField {
 		// 'use_as_body' case.
 		fieldValue := objValue.Field(p.BodyField)
-		if fieldValue.Kind() == reflect.Ptr {
-			// Fill the pointer with new object.
-			fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
-		} else {
-			// Take a pointer if the field is not a pointer.
-			// Protobuf does not parse into a double pointer,
-			// that is why the check is needed.
-			fieldValue = fieldValue.Addr()
+		if !p.Stream {
+			if fieldValue.Kind() == reflect.Ptr {
+				// Fill the pointer with new object.
+				fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
+			} else {
+				// Take a pointer if the field is not a pointer.
+				// Protobuf does not parse into a double pointer,
+				// that is why the check is needed.
+				fieldValue = fieldValue.Addr()
+			}
 		}
 		bodyPtr := fieldValue.Interface()
 		if p.Protobuf {
@@ -414,15 +462,17 @@ func parseRequest(objPtr interface{}, bodyReader io.Reader, query url.Values, re
 			if !ok {
 				panic("protobuf field is not of type proto.Message")
 			}
-			buf, err := ioutil.ReadAll(bodyReader)
+			buf, err := ioutil.ReadAll(bodyReadCloser)
 			if err != nil {
 				return err
 			}
 			if err := proto.Unmarshal(buf, bodyPtrMessage); err != nil {
 				return err
 			}
+		} else if p.Stream {
+			fieldValue.Set(reflect.ValueOf(bodyReadCloser))
 		} else {
-			if err := json.NewDecoder(bodyReader).Decode(bodyPtr); err != nil {
+			if err := json.NewDecoder(bodyReadCloser).Decode(bodyPtr); err != nil {
 				return err
 			}
 		}
@@ -431,14 +481,14 @@ func parseRequest(objPtr interface{}, bodyReader io.Reader, query url.Values, re
 		// In this case JSON parsing is skipped.
 	} else if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 && len(p.CookieMapping) == 0 {
 		// No query and header. Parse JSON into the original structure.
-		if err := json.NewDecoder(bodyReader).Decode(objPtr); err != nil {
+		if err := json.NewDecoder(bodyReadCloser).Decode(objPtr); err != nil {
 			return err
 		}
 	} else {
 		// JSON fields mixed with header and/or query fields.
 		// Parse JSON into a temporary struct and copy fields into the original struct.
 		jsonPtrValue := reflect.New(p.TypeForJson)
-		if err := json.NewDecoder(bodyReader).Decode(jsonPtrValue.Interface()); err != nil {
+		if err := json.NewDecoder(bodyReadCloser).Decode(jsonPtrValue.Interface()); err != nil {
 			return err
 		}
 		jsonValue := jsonPtrValue.Elem()
@@ -447,9 +497,11 @@ func parseRequest(objPtr interface{}, bodyReader io.Reader, query url.Values, re
 		}
 	}
 
-	// Drain the reader in case we skipped parsing or something is left.
-	if _, err := io.Copy(ioutil.Discard, bodyReader); err != nil {
-		return err
+	if !p.Stream {
+		// Drain the reader in case we skipped parsing or something is left.
+		if _, err := io.Copy(ioutil.Discard, bodyReadCloser); err != nil {
+			return err
+		}
 	}
 
 	for _, m := range p.QueryMapping {

@@ -56,3 +56,12 @@ func (c *Client) Since(ctx context.Context, req *SinceRequest) (res *SinceRespon
 	}
 	return
 }
+
+func (c *Client) Stream(ctx context.Context, req *StreamRequest) (res *StreamResponse, err error) {
+	res = &StreamResponse{}
+	err = c.api2client.Call(ctx, res, req)
+	if err != nil {
+		return nil, err
+	}
+	return
+}

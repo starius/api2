@@ -74,6 +74,19 @@ func NewClient(routes []Route, baseURL string, opts ...Option) *Client {
 	}
 }
 
+type bodyCloseNeeder interface {
+	BodyCloseNeeded(ctx context.Context, response, request interface{}) bool
+}
+
+func bodyCloseNeeded(ctx context.Context, response, request interface{}, t Transport) bool {
+	n, ok := t.(bodyCloseNeeder)
+	if !ok {
+		// Backward-compatible mode. Old behaviour was to Close.
+		return true
+	}
+	return n.BodyCloseNeeded(ctx, response, request)
+}
+
 // Call calls remote method deduced by request and response types.
 // Both request and response must be pointers to structs.
 // The method must be called on exactly the same types as the
@@ -110,6 +123,9 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 	}
 	res.Body = http.MaxBytesReader(nil, res.Body, c.maxBody)
 	defer func() {
+		if !bodyCloseNeeded(ctx, request, response, t) {
+			return
+		}
 		if err := res.Body.Close(); err != nil {
 			c.errorf("failed to close resource: %v", err)
 		}

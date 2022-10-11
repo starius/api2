@@ -4,6 +4,7 @@ package example
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -71,8 +72,18 @@ type SinceResponse struct {
 	Body *durationpb.Duration `use_as_body:"true" is_protobuf:"true"`
 }
 
+type StreamRequest struct {
+	Session string        `header:"session"`
+	Body    io.ReadCloser `use_as_body:"true" is_stream:"true"`
+}
+
+type StreamResponse struct {
+	Body io.ReadCloser `use_as_body:"true" is_stream:"true"`
+}
+
 type IEchoService interface {
 	Hello(ctx context.Context, req *HelloRequest) (*HelloResponse, error)
 	Echo(ctx context.Context, req *EchoRequest) (*EchoResponse, error)
 	Since(ctx context.Context, req *SinceRequest) (*SinceResponse, error)
+	Stream(ctx context.Context, req *StreamRequest) (*StreamResponse, error)
 }
