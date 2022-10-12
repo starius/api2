@@ -525,6 +525,21 @@ func TestQueryAndHeader(t *testing.T) {
 			wantBody:  string(protobufSampleBytes),
 			cmpAsJson: true,
 		},
+		{
+			objPtr: &struct {
+				Foo *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
+				Bar string                 `header:"bar"`
+			}{
+				Foo: protobufSampleObject,
+				Bar: "some field after is_protobuf field",
+			},
+			query:    true,
+			wantBody: string(protobufSampleBytes),
+			wantHeader: map[string][]string{
+				"Bar": []string{"some field after is_protobuf field"},
+			},
+			cmpAsJson: true,
+		},
 	}
 
 	for i, tc := range cases {

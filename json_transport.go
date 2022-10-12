@@ -238,7 +238,9 @@ func prepare(objType reflect.Type) *preparedType {
 		headerKey := field.Tag.Get("header")
 		cookieKey := field.Tag.Get("cookie")
 		isBodyField := field.Tag.Get("use_as_body") == "true"
-		p.Protobuf = isBodyField && field.Tag.Get("is_protobuf") == "true"
+		if isBodyField {
+			p.Protobuf = field.Tag.Get("is_protobuf") == "true"
+		}
 		if queryKey != "" {
 			p.QueryMapping = append(p.QueryMapping, strMapping{
 				Field: i,
