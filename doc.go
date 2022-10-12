@@ -68,6 +68,20 @@ If you use `use_as_body:"true"`, you can also set `is_protobuf:"true"`
 and put a protobuf type (convertible to proto.Message) in that field.
 It will be sent over wire as protobuf binary form.
 
+Streaming. If you use `use_as_body:"true"`, you can also set
+`is_stream:"true"`. In this case the field must be of type `io.ReadCloser`.
+On the client side put any object implementing `io.ReadCloser` to such
+a field in Request. It will be read and closed by the library and used
+as HTTP request body. On the server side your handler
+should read from the reader passed in that field of Request.
+(You don't have to read the entire body and to close it.)
+For Response, on the server side, the handler must put any object
+implementing `io.ReadCloser` to such a field of Response.
+The library will use it to generate HTTP response's body and close it.
+On the client side your code must read from that reader the entire response
+and then close it. If a streaming field is left `nil`, it is interpreted
+as empty body.
+
 Now let's write the function that generates the table of routes:
 
 	func GetRoutes(s *Foo) []api2.Route {

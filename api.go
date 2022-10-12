@@ -3,6 +3,7 @@ package api2
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"path"
 	"reflect"
@@ -80,7 +81,10 @@ func validateHandler(handlerType reflect.Type) {
 	}
 }
 
-var protoType = reflect.TypeOf((*proto.Message)(nil)).Elem()
+var (
+	protoType      = reflect.TypeOf((*proto.Message)(nil)).Elem()
+	readCloserType = reflect.TypeOf((*io.ReadCloser)(nil)).Elem()
+)
 
 func validateRequestResponse(structType reflect.Type, request bool) {
 	var jsonFields, bodyFields []string
@@ -89,6 +93,7 @@ func validateRequestResponse(structType reflect.Type, request bool) {
 		hasJson := field.Tag.Get("json") != ""
 		hasUseAsBody := field.Tag.Get("use_as_body") == "true"
 		hasProtobuf := field.Tag.Get("is_protobuf") == "true"
+		hasStream := field.Tag.Get("is_stream") == "true"
 		hasQuery := field.Tag.Get("query") != ""
 		hasHeader := field.Tag.Get("header") != ""
 		hasCookie := field.Tag.Get("cookie") != ""
@@ -98,6 +103,19 @@ func validateRequestResponse(structType reflect.Type, request bool) {
 		}
 		if hasProtobuf && !field.Type.ConvertibleTo(protoType) {
 			panic(fmt.Sprintf("field %s of struct %s: hasProtobuf=%v, but its type %s is not convertible to proto.Message", field.Name, structType.Name(), hasProtobuf, field.Type))
+		}
+
+		if hasStream {
+			if !hasUseAsBody {
+				panic(fmt.Sprintf("field %s of struct %s: hasStream=%v, so hasUseAsBody must also be %v", field.Name, structType.Name(), hasStream, hasUseAsBody))
+			}
+			if !readCloserType.AssignableTo(field.Type) {
+				panic(fmt.Sprintf("field %s of struct %s: hasStream=%v, but io.ReadCloser is not assignable to its type %s", field.Name, structType.Name(), hasStream, field.Type))
+			}
+		}
+
+		if hasStream && hasProtobuf {
+			panic(fmt.Sprintf("field %s of struct %s: hasProtobuf=%v and hasStream=%v, but they must not be used together", field.Name, structType.Name(), hasProtobuf, hasStream))
 		}
 
 		sum := 0

@@ -94,6 +94,17 @@
    "example.SinceResponse": {
     "type": "object"
    },
+   "example.StreamRequest": {
+    "properties": {
+     "session": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "example.StreamResponse": {
+    "type": "object"
+   },
    "example.UserSettings": {}
   },
   "requestBodies": {
@@ -120,6 +131,15 @@
      "application/json": {
       "schema": {
        "$ref": "#/components/schemas/example.SinceRequest"
+      }
+     }
+    }
+   },
+   "example.StreamRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.StreamRequest"
       }
      }
     }
@@ -192,6 +212,31 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/example.SinceResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "example"
+    ]
+   }
+  },
+  "/stream": {
+   "put": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/example.StreamRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/example.StreamResponse"
         }
        }
       },

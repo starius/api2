@@ -10,3 +10,6 @@ example:
     Since:
       method: "POST"
       path: "/since"
+    Stream:
+      method: "PUT"
+      path: "/stream"

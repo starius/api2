@@ -1,10 +1,12 @@
 package example
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -74,5 +76,21 @@ func (s *EchoService) Since(ctx context.Context, req *SinceRequest) (*SinceRespo
 	duration := t2.Sub(t1)
 	return &SinceResponse{
 		Body: durationpb.New(duration),
+	}, nil
+}
+
+func (s *EchoService) Stream(ctx context.Context, req *StreamRequest) (*StreamResponse, error) {
+	if !s.sessions[req.Session] {
+		return nil, fmt.Errorf("bad session")
+	}
+	input, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read input: %w", err)
+	}
+
+	output := bytes.ToUpper(input)
+
+	return &StreamResponse{
+		Body: io.NopCloser(bytes.NewReader(output)),
 	}, nil
 }

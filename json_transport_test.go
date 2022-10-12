@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -59,6 +60,7 @@ func TestQueryAndHeader(t *testing.T) {
 		wantHeader    http.Header
 		replaceHeader http.Header
 		cmpAsJson     bool // For cases of non-nil empty slice or map.
+		cmpToWant     bool // If objPtr is destroyed, e.g. streaming.
 	}{
 		{
 			objPtr: &struct {
@@ -525,6 +527,43 @@ func TestQueryAndHeader(t *testing.T) {
 			wantBody:  string(protobufSampleBytes),
 			cmpAsJson: true,
 		},
+		{
+			objPtr: &struct {
+				Foo *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
+				Bar string                 `header:"bar"`
+			}{
+				Foo: protobufSampleObject,
+				Bar: "some field after is_protobuf field",
+			},
+			query:    true,
+			wantBody: string(protobufSampleBytes),
+			wantHeader: map[string][]string{
+				"Bar": []string{"some field after is_protobuf field"},
+			},
+			cmpAsJson: true,
+		},
+
+		// Streaming.
+		{
+			objPtr: &struct {
+				Foo io.ReadCloser `use_as_body:"true" is_stream:"true"`
+			}{
+				Foo: io.NopCloser(bytes.NewReader([]byte("test"))),
+			},
+			wantBody:  "test",
+			request:   true,
+			cmpToWant: true,
+		},
+		{
+			objPtr: &struct {
+				Foo io.ReadCloser `use_as_body:"true" is_stream:"true"`
+			}{
+				Foo: io.NopCloser(bytes.NewReader([]byte("test"))),
+			},
+			wantBody:  "test",
+			request:   false,
+			cmpToWant: true,
+		},
 	}
 
 	for i, tc := range cases {
@@ -541,11 +580,30 @@ func TestQueryAndHeader(t *testing.T) {
 			request = nil
 		}
 
-		var bodyBuffer bytes.Buffer
-		if err := writeQueryHeaderCookie(&bodyBuffer, tc.objPtr, query, request, header, false); err != nil {
-			t.Errorf("case %d: writeQueryHeaderCookie failed: %v", i, err)
+		getBody := func(objPtr interface{}) ([]byte, error) {
+			var bodyBuffer bytes.Buffer
+			bodyReadCloser, err := writeQueryHeaderCookie(&bodyBuffer, objPtr, query, request, header, false)
+			if err != nil {
+				return nil, fmt.Errorf("writeQueryHeaderCookie failed: %w", err)
+			}
+			var bodyBytes []byte
+			if bodyReadCloser != nil {
+				bodyBytes, err = io.ReadAll(bodyReadCloser)
+				if err != nil {
+					return nil, fmt.Errorf("io.ReadAll(bodyReadCloser) failed: %w", err)
+				}
+				if err := bodyReadCloser.Close(); err != nil {
+					return nil, fmt.Errorf("bodyReadCloser.Close() failed: %w", err)
+				}
+			} else {
+				bodyBytes = bodyBuffer.Bytes()
+			}
+			return bytes.TrimSpace(bodyBytes), nil
 		}
-		bodyBytes := bytes.TrimSpace(bodyBuffer.Bytes())
+		bodyBytes, err := getBody(tc.objPtr)
+		if err != nil {
+			t.Errorf("case %d: %v", i, err)
+		}
 
 		bodyStr := string(bodyBytes)
 		if bodyStr != tc.wantBody {
@@ -573,7 +631,8 @@ func TestQueryAndHeader(t *testing.T) {
 		}
 
 		objPtr2 := reflect.New(reflect.TypeOf(tc.objPtr).Elem()).Interface()
-		if err := parseRequest(objPtr2, bytes.NewReader(bodyBytes), query, request, header); err != nil {
+		bodyReadCloser2 := io.NopCloser(bytes.NewReader(bodyBytes))
+		if err := parseRequest(objPtr2, bodyReadCloser2, query, request, header); err != nil {
 			t.Errorf("case %d: parseRequest failed: %v", i, err)
 		}
 
@@ -589,6 +648,16 @@ func TestQueryAndHeader(t *testing.T) {
 		var equal bool
 		if tc.cmpAsJson {
 			equal = bytes.Equal(gotJson, wantJson)
+		} else if tc.cmpToWant {
+			bodyBytes, err := getBody(objPtr2)
+			if err != nil {
+				t.Errorf("case %d (2): %v", i, err)
+			}
+			equal = bytes.Equal(bodyBytes, []byte(tc.wantBody))
+			if !equal {
+				t.Errorf("bodyBytes: %v", bodyBytes)
+				t.Errorf("tc.wantBody: %v", []byte(tc.wantBody))
+			}
 		} else {
 			equal = reflect.DeepEqual(objPtr2, tc.objPtr)
 		}

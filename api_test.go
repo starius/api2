@@ -2,6 +2,7 @@ package api2
 
 import (
 	"context"
+	"io"
 	"reflect"
 	"testing"
 
@@ -166,6 +167,42 @@ func TestValidateRequestResponse(t *testing.T) {
 		{
 			obj: struct {
 				Foo *timestamppb.Timestamp `is_protobuf:"true"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+
+		{
+			obj: struct {
+				Foo io.ReadCloser `use_as_body:"true" is_stream:"true"`
+			}{},
+			request:   true,
+			wantPanic: false,
+		},
+		{
+			obj: struct {
+				Foo io.ReadCloser `use_as_body:"true" is_stream:"true"`
+			}{},
+			request:   false,
+			wantPanic: false,
+		},
+		{
+			obj: struct {
+				Foo *io.ReadCloser `use_as_body:"true" is_stream:"true"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo string `use_as_body:"true" is_stream:"true"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo io.ReadCloser `use_as_body:"true" is_stream:"true" is_protobuf:"true"`
 			}{},
 			request:   true,
 			wantPanic: true,
