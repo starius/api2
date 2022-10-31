@@ -101,6 +101,17 @@ HTTP methods must be different so that they can be distinguished.
 If Transport is not set, DefaultTransport is used which is defined as
 &api2.JsonTransport{}.
 
+**Error handling**. A handler can return any Go error. `JsonTransport`
+by default returns JSON. `Error()` value is put into "error" field of
+that JSON. If the error has `HttpCode() int` method, it is called and
+the result is used as HTTP return code.
+You can pass error details (any struct). For that the error must be of a
+custom type. You should register the error type in `JsonTransport.Errors`
+map. The key used for that error is put into "code" key of JSON and the
+object of the registered type - into "detail" field. The error can be
+wrapped using `fmt.Errorf("%w" ...)`. See
+test/custom_error_test.go for an example.
+
 In the server you need a real instance of service Foo to pass to GetRoutes.
 Then just bind the routes to http.ServeMux and run the server:
 
