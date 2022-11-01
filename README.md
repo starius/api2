@@ -65,6 +65,7 @@ Fields in query, header and cookie parts are encoded and decoded with
 `fmt.Sprintf` and `fmt.Sscanf`. Strings are not decoded with `fmt.Sscanf`,
 but passed as is. Types implementing `encoding.TextMarshaler` and
 `encoding.TextUnmarshaler` are encoded and decoded using it.
+Cookie in Response part must be of type `http.Cookie`.
 If no field is no JSON field in the struct, then HTTP body is skipped.
 
 If you need the top-level type matching body JSON to be not a struct,

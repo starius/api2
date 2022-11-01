@@ -84,6 +84,7 @@ func validateHandler(handlerType reflect.Type) {
 var (
 	protoType      = reflect.TypeOf((*proto.Message)(nil)).Elem()
 	readCloserType = reflect.TypeOf((*io.ReadCloser)(nil)).Elem()
+	cookieType     = reflect.TypeOf((*http.Cookie)(nil)).Elem()
 )
 
 func validateRequestResponse(structType reflect.Type, request bool) {
@@ -130,8 +131,8 @@ func validateRequestResponse(structType reflect.Type, request bool) {
 		if hasQuery && !request {
 			panic(fmt.Sprintf("field %s of struct %s: hasQuery=%v, but query can only be used in requests", field.Name, structType.Name(), hasQuery))
 		}
-		if hasCookie && !request {
-			panic(fmt.Sprintf("field %s of struct %s: hasCookie=%v, but cookie can only be used in requests", field.Name, structType.Name(), hasCookie))
+		if hasCookie && !request && field.Type != cookieType {
+			panic(fmt.Sprintf("field %s of struct %s: hasCookie=%v, response: cookie type is not http.Cookie, but it is required", field.Name, structType.Name(), hasCookie))
 		}
 		if hasJson {
 			jsonFields = append(jsonFields, field.Name)
