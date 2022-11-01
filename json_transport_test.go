@@ -632,8 +632,8 @@ func TestQueryAndHeader(t *testing.T) {
 
 		objPtr2 := reflect.New(reflect.TypeOf(tc.objPtr).Elem()).Interface()
 		bodyReadCloser2 := io.NopCloser(bytes.NewReader(bodyBytes))
-		if err := parseRequest(objPtr2, bodyReadCloser2, query, request, header); err != nil {
-			t.Errorf("case %d: parseRequest failed: %v", i, err)
+		if err := readQueryHeaderCookie(objPtr2, bodyReadCloser2, query, request, header); err != nil {
+			t.Errorf("case %d: readQueryHeaderCookie failed: %v", i, err)
 		}
 
 		gotJson, err := json.MarshalIndent(objPtr2, "", "  ")

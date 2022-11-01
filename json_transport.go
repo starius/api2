@@ -53,7 +53,7 @@ func (h *JsonTransport) DecodeRequest(ctx context.Context, r *http.Request, req 
 	// application/x-www-form-urlencoded. This happens in curl for me.
 	ctx = context.WithValue(ctx, humanType{}, r.FormValue("human") != "")
 
-	if err := parseRequest(req, r.Body, r.URL.Query(), r, r.Header); err != nil {
+	if err := readQueryHeaderCookie(req, r.Body, r.URL.Query(), r, r.Header); err != nil {
 		return ctx, err
 	}
 
@@ -143,7 +143,7 @@ func (h *JsonTransport) DecodeResponse(ctx context.Context, res *http.Response, 
 		return h.ResponseDecoder(ctx, res, response)
 	}
 
-	if err := parseRequest(response, res.Body, nil, nil, res.Header); err != nil {
+	if err := readQueryHeaderCookie(response, res.Body, nil, nil, res.Header); err != nil {
 		return err
 	}
 
@@ -431,7 +431,7 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 	}
 }
 
-func parseRequest(objPtr interface{}, bodyReadCloser io.ReadCloser, query url.Values, request *http.Request, header http.Header) error {
+func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, query url.Values, request *http.Request, header http.Header) error {
 	objType := reflect.TypeOf(objPtr).Elem()
 	p0, has := prepared.Load(objType)
 	if !has {
