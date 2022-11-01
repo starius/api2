@@ -380,12 +380,26 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 		header.Set(m.Key, value)
 	}
 	for _, m := range p.CookieMapping {
-		value, err := toString(objValue.Field(m.Field).Interface())
-		if err != nil {
-			field := objType.Field(m.Field)
-			return nil, fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
+		valueInterface := objValue.Field(m.Field).Interface()
+		if request != nil {
+			value, err := toString(valueInterface)
+			if err != nil {
+				field := objType.Field(m.Field)
+				return nil, fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
+			}
+			request.AddCookie(&http.Cookie{Name: m.Key, Value: value})
+		} else {
+			cookie := valueInterface.(http.Cookie)
+			if cookie.Name == "" {
+				cookie.Name = m.Key
+			}
+			if cookie.Name != m.Key {
+				return nil, fmt.Errorf("wrong cookie name: want %q, got %q", m.Key, cookie.Name)
+			}
+			if v := cookie.String(); v != "" {
+				header.Add("Set-Cookie", v)
+			}
 		}
-		request.AddCookie(&http.Cookie{Name: m.Key, Value: value})
 	}
 
 	if p.Protobuf {
@@ -522,16 +536,32 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 		}
 	}
 
+	name2cookie := make(map[string]*http.Cookie)
+	if request == nil && len(p.CookieMapping) != 0 {
+		fakeResponse := http.Response{Header: header}
+		cookies := fakeResponse.Cookies()
+		for _, c := range cookies {
+			name2cookie[c.Name] = c
+		}
+	}
 	for _, m := range p.CookieMapping {
 		fieldPtr := objValue.Field(m.Field).Addr().Interface()
-		c, err := request.Cookie(m.Key)
-		value := ""
-		if err != http.ErrNoCookie {
-			value = c.Value
-		}
-		if err := fromString(fieldPtr, value); err != nil {
-			field := objType.Field(m.Field)
-			return fmt.Errorf("failed to parse value %q from cookie key %s for field %s: %w", value, m.Key, field.Name, err)
+		if request != nil {
+			c, err := request.Cookie(m.Key)
+			value := ""
+			if err != http.ErrNoCookie {
+				value = c.Value
+			}
+			if err := fromString(fieldPtr, value); err != nil {
+				field := objType.Field(m.Field)
+				return fmt.Errorf("failed to parse value %q from cookie key %s for field %s: %w", value, m.Key, field.Name, err)
+			}
+		} else {
+			c, has := name2cookie[m.Key]
+			if has {
+				cookiePtr := fieldPtr.(*http.Cookie)
+				*cookiePtr = *c
+			}
 		}
 	}
 

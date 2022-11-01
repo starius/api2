@@ -61,6 +61,7 @@ func TestQueryAndHeader(t *testing.T) {
 		replaceHeader http.Header
 		cmpAsJson     bool // For cases of non-nil empty slice or map.
 		cmpToWant     bool // If objPtr is destroyed, e.g. streaming.
+		skipCmp       bool
 	}{
 		{
 			objPtr: &struct {
@@ -204,6 +205,38 @@ func TestQueryAndHeader(t *testing.T) {
 			wantHeader: map[string][]string{
 				"Cookie": []string{"foo=|||||"},
 			},
+		},
+		{
+			objPtr: &struct {
+				Foo http.Cookie `cookie:"foo"`
+			}{
+				Foo: http.Cookie{
+					Name:  "foo",
+					Value: "Bar",
+					Path:  "/zoo",
+					Raw:   "foo=Bar; Path=/zoo",
+				},
+			},
+			request:  false,
+			wantBody: `{}`,
+			wantHeader: map[string][]string{
+				"Set-Cookie": []string{"foo=Bar; Path=/zoo"},
+			},
+		},
+		{
+			objPtr: &struct {
+				Foo http.Cookie `cookie:"foo"`
+			}{
+				Foo: http.Cookie{
+					Value: "Bar",
+				},
+			},
+			request:  false,
+			wantBody: `{}`,
+			wantHeader: map[string][]string{
+				"Set-Cookie": []string{"foo=Bar"},
+			},
+			skipCmp: true, // When http.Cookie is parsed, Name and Raw are set.
 		},
 
 		{
@@ -662,7 +695,7 @@ func TestQueryAndHeader(t *testing.T) {
 			equal = reflect.DeepEqual(objPtr2, tc.objPtr)
 		}
 
-		if !equal {
+		if !equal && !tc.skipCmp {
 			gotJson, err := json.MarshalIndent(objPtr2, "", "  ")
 			if err != nil {
 				panic(err)

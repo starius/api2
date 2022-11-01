@@ -3,6 +3,7 @@ package api2
 import (
 	"context"
 	"io"
+	"net/http"
 	"reflect"
 	"testing"
 
@@ -70,6 +71,12 @@ func TestValidateRequestResponse(t *testing.T) {
 			}{},
 			request:   false,
 			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo http.Cookie `cookie:"foo"`
+			}{},
+			request: false,
 		},
 
 		{

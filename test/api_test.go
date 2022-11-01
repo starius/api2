@@ -115,9 +115,10 @@ func TestQueryAndHeader(t *testing.T) {
 		SkippedField int `json:"-"`
 	}
 	type PostResponse struct {
-		JsonField    int `json:"json_field"`
-		HeaderField  int `header:"query_field"`
-		SkippedField int `json:"-"`
+		JsonField    int         `json:"json_field"`
+		HeaderField  int         `header:"query_field"`
+		CookieField  http.Cookie `cookie:"cookie_field"`
+		SkippedField int         `json:"-"`
 	}
 
 	postHandler := func(ctx context.Context, req *PostRequest) (res *PostResponse, err error) {
@@ -125,8 +126,13 @@ func TestQueryAndHeader(t *testing.T) {
 			return nil, fmt.Errorf("SkippedField=%d, want 0", req.SkippedField)
 		}
 		return &PostResponse{
-			JsonField:    req.JsonField,
-			HeaderField:  req.QueryField + req.HeaderField + req.CookieField,
+			JsonField:   req.JsonField,
+			HeaderField: req.QueryField + req.HeaderField + req.CookieField,
+			CookieField: http.Cookie{
+				Name:  "cookie_field",
+				Value: "my cookie",
+				Path:  "/path",
+			},
 			SkippedField: 5,
 		}, nil
 	}
@@ -161,6 +167,9 @@ func TestQueryAndHeader(t *testing.T) {
 	}
 	if postRes.HeaderField != 2+3+4 {
 		t.Errorf("HeaderField=%d, want %d", postRes.HeaderField, 2+3+4)
+	}
+	if postRes.CookieField.Value != "my cookie" {
+		t.Errorf("CookieField.Value=%q, want %q", postRes.CookieField.Value, "my cookie")
 	}
 	if postRes.SkippedField != 0 {
 		t.Errorf("SkippedField=%d, want 0", postRes.SkippedField)
