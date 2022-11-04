@@ -54,6 +54,7 @@
    "example.EchoResponse": {
     "properties": {
      "text": {
+      "description": "field comment.",
       "type": "string"
      }
     },

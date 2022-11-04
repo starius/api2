@@ -108,6 +108,9 @@ func GenerateOpenApi(p *Parser, s IType) spec.Schema {
 			propertiesTypes.Properties[keyName] = typeToSwagger(field.Type, scm, func(t reflect.Type) string {
 				return p.GetVisited(t).RefName()
 			})
+			if propertiesTypes.Properties[keyName].Value != nil {
+				propertiesTypes.Properties[keyName].Value.Description = field.Doc
+			}
 		}
 	}
 	return t
