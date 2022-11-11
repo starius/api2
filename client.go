@@ -78,6 +78,10 @@ type bodyCloseNeeder interface {
 	BodyCloseNeeded(ctx context.Context, response, request interface{}) bool
 }
 
+type responseAndErrorDecoder interface {
+	DecodeResponseAndError(ctx context.Context, httpRes *http.Response, res interface{}) error
+}
+
 func bodyCloseNeeded(ctx context.Context, response, request interface{}, t Transport) bool {
 	n, ok := t.(bodyCloseNeeder)
 	if !ok {
@@ -131,8 +135,10 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 		}
 	}()
 
-	// Handle all 2xx responses as success.
-	if 200 <= res.StatusCode && res.StatusCode < 300 {
+	if d, ok := t.(responseAndErrorDecoder); ok {
+		return d.DecodeResponseAndError(req.Context(), res, response)
+	} else if 200 <= res.StatusCode && res.StatusCode < 300 {
+		// Handle all 2xx responses as success.
 		return t.DecodeResponse(req.Context(), res, response)
 	} else {
 		return t.DecodeError(req.Context(), res)

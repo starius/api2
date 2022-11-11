@@ -78,6 +78,75 @@ func TestValidateRequestResponse(t *testing.T) {
 			}{},
 			request: false,
 		},
+		{
+			obj: struct {
+				Status int `use_as_status:"true"`
+			}{},
+			request:   false,
+			wantPanic: false,
+		},
+		{
+			obj: struct {
+				Status string `use_as_status:"true"`
+			}{},
+			request:   false,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Status int `use_as_status:"true"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+
+		{
+			obj: struct {
+				Foo int `json:"foo" use_as_status:"true"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo int `use_as_body:"true" use_as_status:"true"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo int `json:"foo" use_as_status:"true"`
+			}{},
+			request:   false,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo int `use_as_body:"true" use_as_status:"true"`
+			}{},
+			request:   false,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Status  int `use_as_status:"true"`
+				Status2 int `use_as_status:"true"`
+			}{},
+			request:   false,
+			wantPanic: true,
+		},
+
+		{
+			obj: struct {
+				Body struct {
+					Foo int `json:"foo"`
+				} `use_as_body:"true"`
+				Bar int `json:"bar"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
 
 		{
 			obj: struct {
@@ -142,6 +211,14 @@ func TestValidateRequestResponse(t *testing.T) {
 			}{},
 			request:   true,
 			wantPanic: false,
+		},
+		{
+			obj: struct {
+				Foo  *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
+				Foo2 *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
+			}{},
+			request:   true,
+			wantPanic: true,
 		},
 		{
 			obj: struct {

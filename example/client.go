@@ -65,3 +65,12 @@ func (c *Client) Stream(ctx context.Context, req *StreamRequest) (res *StreamRes
 	}
 	return
 }
+
+func (c *Client) Redirect(ctx context.Context, req *RedirectRequest) (res *RedirectResponse, err error) {
+	res = &RedirectResponse{}
+	err = c.api2client.Call(ctx, res, req)
+	if err != nil {
+		return nil, err
+	}
+	return
+}

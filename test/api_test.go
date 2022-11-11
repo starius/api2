@@ -118,6 +118,7 @@ func TestQueryAndHeader(t *testing.T) {
 		JsonField    int         `json:"json_field"`
 		HeaderField  int         `header:"query_field"`
 		CookieField  http.Cookie `cookie:"cookie_field"`
+		StatusField  int         `use_as_status:"true"`
 		SkippedField int         `json:"-"`
 	}
 
@@ -133,6 +134,7 @@ func TestQueryAndHeader(t *testing.T) {
 				Value: "my cookie",
 				Path:  "/path",
 			},
+			StatusField:  400,
 			SkippedField: 5,
 		}, nil
 	}
@@ -160,6 +162,10 @@ func TestQueryAndHeader(t *testing.T) {
 	})
 	if err != nil {
 		t.Errorf("POST failed: %v.", err)
+	}
+
+	if postRes.StatusField != 400 {
+		t.Errorf("StatusField=%d, want %d", postRes.StatusField, 400)
 	}
 
 	if postRes.JsonField != 1 {

@@ -81,9 +81,19 @@ type StreamResponse struct {
 	Body io.ReadCloser `use_as_body:"true" is_stream:"true"`
 }
 
+type RedirectRequest struct {
+	ID string `query:"id"`
+}
+
+type RedirectResponse struct {
+	Status int    `use_as_status:"true"`
+	URL    string `header:"Location"`
+}
+
 type IEchoService interface {
 	Hello(ctx context.Context, req *HelloRequest) (*HelloResponse, error)
 	Echo(ctx context.Context, req *EchoRequest) (*EchoResponse, error)
 	Since(ctx context.Context, req *SinceRequest) (*SinceResponse, error)
 	Stream(ctx context.Context, req *StreamRequest) (*StreamResponse, error)
+	Redirect(ctx context.Context, req *RedirectRequest) (*RedirectResponse, error)
 }

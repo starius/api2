@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net/http"
 	"time"
 
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -92,5 +93,12 @@ func (s *EchoService) Stream(ctx context.Context, req *StreamRequest) (*StreamRe
 
 	return &StreamResponse{
 		Body: io.NopCloser(bytes.NewReader(output)),
+	}, nil
+}
+
+func (s *EchoService) Redirect(ctx context.Context, req *RedirectRequest) (*RedirectResponse, error) {
+	return &RedirectResponse{
+		Status: http.StatusFound,
+		URL:    fmt.Sprintf("https://example.com/user?id=%s", req.ID),
 	}, nil
 }

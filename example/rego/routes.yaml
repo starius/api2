@@ -13,3 +13,6 @@ example:
     Stream:
       method: "PUT"
       path: "/stream"
+    Redirect:
+      method: "GET"
+      path: "/redirect"

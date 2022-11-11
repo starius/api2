@@ -23,6 +23,10 @@ example: {
 				"PUT", "/stream",
 				{"header":["session"]},
 				{}),
+			Redirect: route<example.RedirectRequest, example.RedirectResponse>(
+				"GET", "/redirect",
+				{"query":["session"]},
+				{"header":["Location"]}),
 	},
 },
 }
@@ -91,6 +95,16 @@ export type StreamRequest = {
 
 
 export type StreamResponse = {
+}
+
+
+export type RedirectRequest = {
+	session?: string
+}
+
+
+export type RedirectResponse = {
+	Location?: string
 }
 
 

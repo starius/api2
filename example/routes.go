@@ -12,5 +12,6 @@ func GetRoutes(s IEchoService) []api2.Route {
 		{Method: http.MethodPost, Path: "/echo", Handler: api2.Method(&s, "Echo")},
 		{Method: http.MethodPost, Path: "/since", Handler: api2.Method(&s, "Since")},
 		{Method: http.MethodPut, Path: "/stream", Handler: api2.Method(&s, "Stream")},
+		{Method: http.MethodGet, Path: "/redirect", Handler: api2.Method(&s, "Redirect")},
 	}
 }
