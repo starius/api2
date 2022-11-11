@@ -25,7 +25,7 @@ example: {
 				{}),
 			Redirect: route<example.RedirectRequest, example.RedirectResponse>(
 				"GET", "/redirect",
-				{"query":["session"]},
+				{"query":["id"]},
 				{"header":["Location"]}),
 	},
 },
@@ -99,7 +99,7 @@ export type StreamResponse = {
 
 
 export type RedirectRequest = {
-	session?: string
+	id?: string
 }
 
 

@@ -86,7 +86,7 @@
    },
    "example.RedirectRequest": {
     "properties": {
-     "session": {
+     "id": {
       "type": "string"
      }
     },
