@@ -59,4 +59,12 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(string(streamResBytes))
+
+	redirectRes, err := client.Redirect(ctx, &example.RedirectRequest{
+		ID: "user123",
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(redirectRes.Status, redirectRes.URL)
 }

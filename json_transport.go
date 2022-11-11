@@ -53,7 +53,7 @@ func (h *JsonTransport) DecodeRequest(ctx context.Context, r *http.Request, req 
 	// application/x-www-form-urlencoded. This happens in curl for me.
 	ctx = context.WithValue(ctx, humanType{}, r.FormValue("human") != "")
 
-	if err := readQueryHeaderCookie(req, r.Body, r.URL.Query(), r, r.Header); err != nil {
+	if err := readQueryHeaderCookie(req, r.Body, r.URL.Query(), r, r.Header, 0); err != nil {
 		return ctx, err
 	}
 
@@ -143,7 +143,7 @@ func (h *JsonTransport) DecodeResponse(ctx context.Context, res *http.Response, 
 		return h.ResponseDecoder(ctx, res, response)
 	}
 
-	if err := readQueryHeaderCookie(response, res.Body, nil, nil, res.Header); err != nil {
+	if err := readQueryHeaderCookie(response, res.Body, nil, nil, res.Header, res.StatusCode); err != nil {
 		return err
 	}
 
@@ -224,6 +224,28 @@ func (h *JsonTransport) BodyCloseNeeded(ctx context.Context, response, request i
 	return !p.Stream
 }
 
+func (h *JsonTransport) DecodeResponseAndError(ctx context.Context, httpRes *http.Response, res interface{}) error {
+	objType := reflect.TypeOf(res).Elem()
+	p0, has := prepared.Load(objType)
+	if !has {
+		p0 = prepare(objType)
+		prepared.Store(objType, p0)
+	}
+	p := p0.(*preparedType)
+
+	if p.StatusField != noField {
+		// If Response has status field, no HTTP statuses are considered errors.
+		return h.DecodeResponse(ctx, httpRes, res)
+	}
+
+	if 200 <= httpRes.StatusCode && httpRes.StatusCode < 300 {
+		// Handle all 2xx responses as success.
+		return h.DecodeResponse(ctx, httpRes, res)
+	} else {
+		return h.DecodeError(ctx, httpRes)
+	}
+}
+
 type strMapping struct {
 	Field int
 	Key   string
@@ -241,14 +263,19 @@ type preparedType struct {
 	JsonMapping   []intMapping
 	TypeForJson   reflect.Type
 	BodyField     int
+	StatusField   int
 	Protobuf      bool
 	Stream        bool
+
+	// Special fields are query, header, cookie and status.
+	NoJsonFields    bool
+	NoSpecialFields bool
 }
 
-const noBodyField = -1
+const noField = -1
 
 func prepare(objType reflect.Type) *preparedType {
-	p := &preparedType{BodyField: noBodyField}
+	p := &preparedType{BodyField: noField, StatusField: noField}
 	jsonFields := make([]reflect.StructField, 0, objType.NumField())
 	for i := 0; i < objType.NumField(); i++ {
 		field := objType.Field(i)
@@ -260,6 +287,7 @@ func prepare(objType reflect.Type) *preparedType {
 		headerKey := field.Tag.Get("header")
 		cookieKey := field.Tag.Get("cookie")
 		isBodyField := field.Tag.Get("use_as_body") == "true"
+		isStatusField := field.Tag.Get("use_as_status") == "true"
 		if isBodyField {
 			p.Protobuf = field.Tag.Get("is_protobuf") == "true"
 			p.Stream = field.Tag.Get("is_stream") == "true"
@@ -281,6 +309,8 @@ func prepare(objType reflect.Type) *preparedType {
 			})
 		} else if isBodyField {
 			p.BodyField = i
+		} else if isStatusField {
+			p.StatusField = i
 		} else {
 			// Add to JSON.
 			p.JsonMapping = append(p.JsonMapping, intMapping{
@@ -290,8 +320,19 @@ func prepare(objType reflect.Type) *preparedType {
 			jsonFields = append(jsonFields, field)
 		}
 	}
-	if p.BodyField == noBodyField {
+	if p.BodyField == noField {
 		p.TypeForJson = reflect.StructOf(jsonFields)
+	}
+
+	statusFields := 0
+	if p.StatusField != noField {
+		statusFields = 1
+	}
+	if len(p.QueryMapping)+len(p.HeaderMapping)+len(p.CookieMapping)+statusFields == objType.NumField() {
+		p.NoJsonFields = true
+	}
+	if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 && len(p.CookieMapping) == 0 && p.StatusField == noField {
+		p.NoSpecialFields = true
 	}
 	return p
 }
@@ -324,6 +365,10 @@ func fromString(objPtr interface{}, value string) error {
 	}
 }
 
+type headerWriter interface {
+	WriteHeader(statusCode int)
+}
+
 func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, request *http.Request, header http.Header, human bool) (io.ReadCloser, error) {
 	header.Set("Content-Type", "application/json; charset=UTF-8")
 	if request != nil {
@@ -341,7 +386,7 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 	objValue := reflect.ValueOf(objPtr).Elem()
 
 	var bodyPtr interface{}
-	if p.BodyField != noBodyField {
+	if p.BodyField != noField {
 		// 'use_as_body' case.
 		fieldValue := objValue.Field(p.BodyField)
 		if !p.Stream && fieldValue.Kind() != reflect.Ptr {
@@ -351,8 +396,8 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 			fieldValue = fieldValue.Addr()
 		}
 		bodyPtr = fieldValue.Interface()
-	} else if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 && len(p.CookieMapping) == 0 {
-		// No query, header and cookie. Returning the original object.
+	} else if p.NoSpecialFields {
+		// Returning the original object.
 		bodyPtr = objPtr
 	} else {
 		// JSON fields mixed with header and/or query fields.
@@ -402,6 +447,14 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 		}
 	}
 
+	if p.StatusField != noField {
+		status := objValue.Field(p.StatusField).Interface().(int)
+		if status == 0 {
+			status = 200
+		}
+		w.(headerWriter).WriteHeader(status)
+	}
+
 	if p.Protobuf {
 		bodyPtrMessage, ok := bodyPtr.(proto.Message)
 		if !ok {
@@ -445,7 +498,7 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 	}
 }
 
-func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, query url.Values, request *http.Request, header http.Header) error {
+func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, query url.Values, request *http.Request, header http.Header, status int) error {
 	objType := reflect.TypeOf(objPtr).Elem()
 	p0, has := prepared.Load(objType)
 	if !has {
@@ -456,7 +509,11 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 
 	objValue := reflect.ValueOf(objPtr).Elem()
 
-	if p.BodyField != noBodyField {
+	if p.StatusField != noField {
+		fieldValue := objValue.Field(p.StatusField)
+		fieldValue.SetInt(int64(status))
+	}
+	if p.BodyField != noField {
 		// 'use_as_body' case.
 		fieldValue := objValue.Field(p.BodyField)
 		if !p.Stream {
@@ -490,11 +547,10 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 				return err
 			}
 		}
-	} else if len(p.QueryMapping)+len(p.HeaderMapping)+len(p.CookieMapping) == objType.NumField() {
-		// All the fields are query, header or cookie. No fields for JSON.
+	} else if p.NoJsonFields {
 		// In this case JSON parsing is skipped.
-	} else if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 && len(p.CookieMapping) == 0 {
-		// No query and header. Parse JSON into the original structure.
+	} else if p.NoSpecialFields {
+		// Parse JSON into the original structure.
 		if err := json.NewDecoder(bodyReadCloser).Decode(objPtr); err != nil {
 			return err
 		}

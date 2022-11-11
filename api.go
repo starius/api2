@@ -85,14 +85,16 @@ var (
 	protoType      = reflect.TypeOf((*proto.Message)(nil)).Elem()
 	readCloserType = reflect.TypeOf((*io.ReadCloser)(nil)).Elem()
 	cookieType     = reflect.TypeOf((*http.Cookie)(nil)).Elem()
+	intType        = reflect.TypeOf((*int)(nil)).Elem()
 )
 
 func validateRequestResponse(structType reflect.Type, request bool) {
-	var jsonFields, bodyFields []string
+	var jsonFields, bodyFields, statusFields []string
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
 		hasJson := field.Tag.Get("json") != ""
 		hasUseAsBody := field.Tag.Get("use_as_body") == "true"
+		hasUseAsStatus := field.Tag.Get("use_as_status") == "true"
 		hasProtobuf := field.Tag.Get("is_protobuf") == "true"
 		hasStream := field.Tag.Get("is_stream") == "true"
 		hasQuery := field.Tag.Get("query") != ""
@@ -120,13 +122,19 @@ func validateRequestResponse(structType reflect.Type, request bool) {
 		}
 
 		sum := 0
-		for _, v := range []bool{hasJson, hasUseAsBody, hasQuery, hasHeader, hasCookie} {
+		for _, v := range []bool{hasJson, hasUseAsBody, hasUseAsStatus, hasQuery, hasHeader, hasCookie} {
 			if v {
 				sum++
 			}
 		}
 		if sum > 1 {
-			panic(fmt.Sprintf("field %s of struct %s: hasJson=%v, hasUseAsBody=%v, hasQuery=%v, hasHeader=%v, hasCookie=%v want at most one to be true", field.Name, structType.Name(), hasJson, hasUseAsBody, hasQuery, hasHeader, hasCookie))
+			panic(fmt.Sprintf("field %s of struct %s: hasJson=%v, hasUseAsBody=%v, hasUseAsStatus=%v, hasQuery=%v, hasHeader=%v, hasCookie=%v want at most one to be true", field.Name, structType.Name(), hasJson, hasUseAsBody, hasUseAsStatus, hasQuery, hasHeader, hasCookie))
+		}
+		if hasUseAsStatus && request {
+			panic(fmt.Sprintf("field %s of struct %s: hasUseAsStatus=%v, but HTTP status can only be set in responses", field.Name, structType.Name(), hasUseAsStatus))
+		}
+		if hasUseAsStatus && field.Type != intType {
+			panic(fmt.Sprintf("field %s of struct %s: hasUseAsStatus=%v, but type is %s, not int", field.Name, structType.Name(), hasUseAsStatus, field.Type.Name()))
 		}
 		if hasQuery && !request {
 			panic(fmt.Sprintf("field %s of struct %s: hasQuery=%v, but query can only be used in requests", field.Name, structType.Name(), hasQuery))
@@ -137,9 +145,15 @@ func validateRequestResponse(structType reflect.Type, request bool) {
 		if hasJson {
 			jsonFields = append(jsonFields, field.Name)
 		}
+		if hasUseAsStatus {
+			statusFields = append(statusFields, field.Name)
+		}
 		if hasUseAsBody {
 			bodyFields = append(bodyFields, field.Name)
 		}
+	}
+	if len(statusFields) > 1 {
+		panic(fmt.Sprintf("struct %s has more than 1 use_as_status field: %v", structType.Name(), statusFields))
 	}
 	if len(bodyFields) > 1 {
 		panic(fmt.Sprintf("struct %s has more than 1 use_as_body field: %v", structType.Name(), bodyFields))

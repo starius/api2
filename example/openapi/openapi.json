@@ -84,6 +84,22 @@
     ],
     "type": "number"
    },
+   "example.RedirectRequest": {
+    "properties": {
+     "session": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "example.RedirectResponse": {
+    "properties": {
+     "Location": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
    "example.SinceRequest": {
     "properties": {
      "session": {
@@ -123,6 +139,15 @@
      "application/json": {
       "schema": {
        "$ref": "#/components/schemas/example.HelloRequest"
+      }
+     }
+    }
+   },
+   "example.RedirectRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.RedirectRequest"
       }
      }
     }
@@ -188,6 +213,31 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/example.HelloResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "example"
+    ]
+   }
+  },
+  "/redirect": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/example.RedirectRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/example.RedirectResponse"
         }
        }
       },

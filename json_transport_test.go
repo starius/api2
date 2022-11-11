@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"testing"
@@ -53,6 +54,7 @@ func TestQueryAndHeader(t *testing.T) {
 		objPtr        interface{}
 		query         bool
 		request       bool
+		wantStatus    int
 		wantBody      string
 		replaceBody   string
 		wantQuery     url.Values
@@ -94,6 +96,53 @@ func TestQueryAndHeader(t *testing.T) {
 				"Foo": []string{"foo 123"},
 			},
 			wantBody: `{}`,
+		},
+
+		{
+			objPtr: &struct {
+				Status int `use_as_status:"true"`
+			}{
+				Status: 200,
+			},
+			wantStatus: 200,
+			wantBody:   `{}`,
+		},
+		{
+			objPtr: &struct {
+				Status int    `use_as_status:"true"`
+				Foo    string `json:"foo"`
+			}{
+				Status: 200,
+				Foo:    "abc",
+			},
+			wantStatus: 200,
+			wantBody:   `{"foo":"abc"}`,
+		},
+		{
+			objPtr: &struct {
+				Status int `use_as_status:"true"`
+			}{
+				Status: 201,
+			},
+			wantStatus: 201,
+			wantBody:   `{}`,
+		},
+		{
+			objPtr: &struct {
+				Status int `use_as_status:"true"`
+			}{
+				Status: http.StatusFound,
+			},
+			wantStatus: http.StatusFound,
+			wantBody:   `{}`,
+		},
+		{
+			objPtr: &struct {
+				Status int `use_as_status:"true"`
+			}{},
+			wantStatus: 200,
+			wantBody:   `{}`,
+			skipCmp:    true,
 		},
 
 		{
@@ -613,12 +662,14 @@ func TestQueryAndHeader(t *testing.T) {
 			request = nil
 		}
 
+		var gotStatus int
 		getBody := func(objPtr interface{}) ([]byte, error) {
-			var bodyBuffer bytes.Buffer
-			bodyReadCloser, err := writeQueryHeaderCookie(&bodyBuffer, objPtr, query, request, header, false)
+			bodyBuffer := httptest.NewRecorder()
+			bodyReadCloser, err := writeQueryHeaderCookie(bodyBuffer, objPtr, query, request, header, false)
 			if err != nil {
 				return nil, fmt.Errorf("writeQueryHeaderCookie failed: %w", err)
 			}
+			gotStatus = bodyBuffer.Result().StatusCode
 			var bodyBytes []byte
 			if bodyReadCloser != nil {
 				bodyBytes, err = io.ReadAll(bodyReadCloser)
@@ -629,13 +680,17 @@ func TestQueryAndHeader(t *testing.T) {
 					return nil, fmt.Errorf("bodyReadCloser.Close() failed: %w", err)
 				}
 			} else {
-				bodyBytes = bodyBuffer.Bytes()
+				bodyBytes = bodyBuffer.Body.Bytes()
 			}
 			return bytes.TrimSpace(bodyBytes), nil
 		}
 		bodyBytes, err := getBody(tc.objPtr)
 		if err != nil {
 			t.Errorf("case %d: %v", i, err)
+		}
+
+		if tc.wantStatus != 0 && gotStatus != tc.wantStatus {
+			t.Errorf("case %d: wantStatus=%d gotStatus=%d", i, tc.wantStatus, gotStatus)
 		}
 
 		bodyStr := string(bodyBytes)
@@ -665,7 +720,7 @@ func TestQueryAndHeader(t *testing.T) {
 
 		objPtr2 := reflect.New(reflect.TypeOf(tc.objPtr).Elem()).Interface()
 		bodyReadCloser2 := io.NopCloser(bytes.NewReader(bodyBytes))
-		if err := readQueryHeaderCookie(objPtr2, bodyReadCloser2, query, request, header); err != nil {
+		if err := readQueryHeaderCookie(objPtr2, bodyReadCloser2, query, request, header, gotStatus); err != nil {
 			t.Errorf("case %d: readQueryHeaderCookie failed: %v", i, err)
 		}
 

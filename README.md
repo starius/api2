@@ -68,6 +68,10 @@ but passed as is. Types implementing `encoding.TextMarshaler` and
 Cookie in Response part must be of type `http.Cookie`.
 If no field is no JSON field in the struct, then HTTP body is skipped.
 
+You can also set HTTP status code of response by adding a field of type
+`int` with tag `use_as_status:"true"` to Response. 0 is interpreted as 200.
+If Response has status field, no HTTP statuses are considered errors.
+
 If you need the top-level type matching body JSON to be not a struct,
 but of some other kind (e.g. slice or map), you should provide a field
 in your struct with tag `use_as_body:"true"`:
