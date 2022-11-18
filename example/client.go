@@ -19,7 +19,10 @@ func NewClient(baseURL string, opts ...api2.Option) (*Client, error) {
 	if _, err := url.ParseRequestURI(baseURL); err != nil {
 		return nil, err
 	}
-	routes := GetRoutes(nil)
+	var routes []api2.Route
+
+	routes = append(routes, GetRoutes(nil)...)
+
 	api2client := api2.NewClient(routes, baseURL, opts...)
 	return &Client{
 		api2client: api2client,

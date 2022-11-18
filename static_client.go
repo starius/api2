@@ -71,7 +71,14 @@ func getFileByFunction(f interface{}) string {
 	return fileName
 }
 
-func runTemplate(routes []Route, pkg, api2pkg, serviceInterface string) (code string, err error) {
+func getFuncName(f interface{}) string {
+	fullName := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+	// Cut package path from the function name.
+	index := strings.LastIndex(fullName, ".")
+	return fullName[index+1:]
+}
+
+func runTemplate(routes []Route, pkg, api2pkg string, getRoutesNames, serviceInterfaces []string) (code string, err error) {
 	type Method struct {
 		Name     string
 		Request  string
@@ -79,10 +86,11 @@ func runTemplate(routes []Route, pkg, api2pkg, serviceInterface string) (code st
 	}
 
 	type Vars struct {
-		Pkg              string
-		Api2Pkg          string
-		ServiceInterface string
-		Methods          []Method
+		Pkg               string
+		Api2Pkg           string
+		GetRoutesNames    []string
+		ServiceInterfaces []string
+		Methods           []Method
 	}
 
 	methods := make([]Method, 0, len(routes))
@@ -99,10 +107,11 @@ func runTemplate(routes []Route, pkg, api2pkg, serviceInterface string) (code st
 	}
 
 	vars := Vars{
-		Pkg:              pkg,
-		Api2Pkg:          api2pkg,
-		ServiceInterface: serviceInterface,
-		Methods:          methods,
+		Pkg:               pkg,
+		Api2Pkg:           api2pkg,
+		GetRoutesNames:    getRoutesNames,
+		ServiceInterfaces: serviceInterfaces,
+		Methods:           methods,
 	}
 
 	var codeBuf bytes.Buffer
@@ -129,14 +138,17 @@ import (
 type Client struct {
 	api2client *api2.Client
 }
-{{ if .ServiceInterface }}
-var _ {{ .ServiceInterface }} = (*Client)(nil)
+{{ range .ServiceInterfaces }}
+var _ {{ . }} = (*Client)(nil)
 {{ end }}
 func NewClient(baseURL string, opts ...api2.Option) (*Client, error) {
 	if _, err := url.ParseRequestURI(baseURL); err != nil {
 		return nil, err
 	}
-	routes := GetRoutes(nil)
+	var routes []api2.Route
+{{ range .GetRoutesNames }}
+	routes = append(routes, {{ . }}(nil)...)
+{{ end }}
 	api2client := api2.NewClient(routes, baseURL, opts...)
 	return &Client{
 		api2client: api2client,
@@ -161,29 +173,42 @@ func (c *Client) {{ .Name }}(ctx context.Context, req *{{ .Request }}) (res *{{ 
 // returns the code of static client and path to the file where the code
 // should be saved (client.go in the same directory where GetRoutes and
 // types of requests, responses and service are defined.
-func GenerateClientCode(getRoutes interface{}) (code, clientFile string, err error) {
-	fileName := getFileByFunction(getRoutes)
+func GenerateClientCode(getRoutess ...interface{}) (code, clientFile string, err error) {
+	var routes []Route
+	var getRoutesNames, serviceInterfaces []string
+	var pkg, api2pkg string
+	for _, getRoutes := range getRoutess {
+		fileName := getFileByFunction(getRoutes)
 
-	// Check that the file does not exist or was generated.
-	dir := filepath.Dir(fileName)
-	clientFile = filepath.Join(dir, "client.go")
+		// Check that the file does not exist or was generated.
+		dir := filepath.Dir(fileName)
+		clientFile = filepath.Join(dir, "client.go")
 
-	pkg, api2pkg, err := detectPkgs(dir)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to determine pkg and api2pkg for dir %s: %v", dir, err)
+		pkg1, api2pkg1, err := detectPkgs(dir)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to determine pkg and api2pkg for dir %s: %v", dir, err)
+		}
+		if pkg != "" && pkg1 != pkg {
+			return "", "", fmt.Errorf("instances of GetRoutes belong to different directories: %s and %s", pkg, pkg1)
+		}
+		if api2pkg != "" && api2pkg1 != api2pkg {
+			return "", "", fmt.Errorf("instances of GetRoutes use different api2 packages: %s and %s", api2pkg, api2pkg1)
+		}
+		pkg = pkg1
+		api2pkg = api2pkg1
+
+		genValue := reflect.ValueOf(getRoutes)
+		serviceArg := reflect.New(genValue.Type().In(0)).Elem()
+		routesValues := genValue.Call([]reflect.Value{serviceArg})
+		routes = append(routes, routesValues[0].Interface().([]Route)...)
+
+		getRoutesNames = append(getRoutesNames, getFuncName(getRoutes))
+		if genValue.Type().In(0).Kind() == reflect.Interface {
+			serviceInterfaces = append(serviceInterfaces, genValue.Type().In(0).Name())
+		}
 	}
 
-	genValue := reflect.ValueOf(getRoutes)
-	serviceArg := reflect.New(genValue.Type().In(0)).Elem()
-	routesValues := genValue.Call([]reflect.Value{serviceArg})
-	routes := routesValues[0].Interface().([]Route)
-
-	serviceInterface := genValue.Type().In(0).Name()
-	if genValue.Type().In(0).Kind() != reflect.Interface {
-		serviceInterface = ""
-	}
-
-	code, err = runTemplate(routes, pkg, api2pkg, serviceInterface)
+	code, err = runTemplate(routes, pkg, api2pkg, getRoutesNames, serviceInterfaces)
 	if err != nil {
 		return "", "", err
 	}
@@ -193,18 +218,18 @@ func GenerateClientCode(getRoutes interface{}) (code, clientFile string, err err
 
 // GenerateClient generates file client.go with static client near the file
 // in which passed GetRoutes function is defined.
-func GenerateClient(getRoutes interface{}) {
-	fileName := getFileByFunction(getRoutes)
+func GenerateClient(getRoutes ...interface{}) {
+	fileName := getFileByFunction(getRoutes[0])
 	log.Printf("api2 generates static client for %s ...", fileName)
-	if err := generateClient(getRoutes); err != nil {
+	if err := generateClient(getRoutes...); err != nil {
 		log.Fatalf("api2 failed to generate static client for %s: %v", fileName, err)
 	}
 }
 
 var codeGeneratedRE = regexp.MustCompile(`.*Code generated .* DO NOT EDIT\..*`)
 
-func generateClient(getRoutes interface{}) error {
-	code, clientFile, err := GenerateClientCode(getRoutes)
+func generateClient(getRoutes ...interface{}) error {
+	code, clientFile, err := GenerateClientCode(getRoutes...)
 	if err != nil {
 		return err
 	}

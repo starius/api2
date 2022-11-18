@@ -194,6 +194,9 @@ for it in file client.go located near the file in which `GetRoutes` is defined:
 api2.GenerateClient(foo.GetRoutes)
 ```
 
+GenerateClient can accept multiple GetRoutes functions, but they must
+be located in the same package.
+
 You can find an example in directory [example](./example).
 To build and run it:
 

@@ -167,5 +167,8 @@ If you have function GetRoutes in package foo as above you can generate static c
 for it in file client.go located near the file in which GetRoutes is defined:
 
 	api2.GenerateClient(foo.GetRoutes)
+
+GenerateClient can accept multiple GetRoutes functions, but they must
+be located in the same package.
 */
 package api2
