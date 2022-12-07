@@ -13,6 +13,10 @@ type errorMessage struct {
 	Code   string          `json:"code,omitempty"`
 }
 
+type Router interface {
+	HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request))
+}
+
 func jsonError(w http.ResponseWriter, code int, format string, args ...interface{}) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
@@ -21,7 +25,7 @@ func jsonError(w http.ResponseWriter, code int, format string, args ...interface
 }
 
 // BindRoutes adds handlers of routes to http.ServeMux.
-func BindRoutes(mux *http.ServeMux, routes []Route, opts ...Option) {
+func BindRoutes(mux Router, routes []Route, opts ...Option) {
 	config := NewDefaultConfig()
 	for _, opt := range opts {
 		opt(config)
