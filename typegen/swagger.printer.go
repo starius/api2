@@ -60,7 +60,9 @@ func typeToSwagger(t reflect.Type, swaggerType *spec.SchemaRef, getTypeName Type
 		swaggerType.Value.Items = typeToSwagger(t.Elem(), props, getTypeName)
 		return swaggerType
 	case k == reflect.Map:
-		swaggerType.Value.AdditionalProperties = typeToSwagger(t.Elem(), &spec.SchemaRef{}, getTypeName)
+		swaggerType.Value.AdditionalProperties = spec.AdditionalProperties{
+			Schema: typeToSwagger(t.Elem(), &spec.SchemaRef{}, getTypeName),
+		}
 		swaggerType.Value.Type = "object"
 		return swaggerType
 	}

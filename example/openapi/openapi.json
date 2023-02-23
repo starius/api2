@@ -1,6 +1,52 @@
 {
- "openapi": "3.0.0",
  "components": {
+  "requestBodies": {
+   "example.EchoRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.EchoRequest"
+      }
+     }
+    }
+   },
+   "example.HelloRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.HelloRequest"
+      }
+     }
+    }
+   },
+   "example.RedirectRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.RedirectRequest"
+      }
+     }
+    }
+   },
+   "example.SinceRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.SinceRequest"
+      }
+     }
+    }
+   },
+   "example.StreamRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.StreamRequest"
+      }
+     }
+    }
+   }
+  },
   "schemas": {
    "example.CustomType2": {
     "allOf": [
@@ -123,59 +169,13 @@
     "type": "object"
    },
    "example.UserSettings": {}
-  },
-  "requestBodies": {
-   "example.EchoRequest": {
-    "content": {
-     "application/json": {
-      "schema": {
-       "$ref": "#/components/schemas/example.EchoRequest"
-      }
-     }
-    }
-   },
-   "example.HelloRequest": {
-    "content": {
-     "application/json": {
-      "schema": {
-       "$ref": "#/components/schemas/example.HelloRequest"
-      }
-     }
-    }
-   },
-   "example.RedirectRequest": {
-    "content": {
-     "application/json": {
-      "schema": {
-       "$ref": "#/components/schemas/example.RedirectRequest"
-      }
-     }
-    }
-   },
-   "example.SinceRequest": {
-    "content": {
-     "application/json": {
-      "schema": {
-       "$ref": "#/components/schemas/example.SinceRequest"
-      }
-     }
-    }
-   },
-   "example.StreamRequest": {
-    "content": {
-     "application/json": {
-      "schema": {
-       "$ref": "#/components/schemas/example.StreamRequest"
-      }
-     }
-    }
-   }
   }
  },
  "info": {
   "title": "",
   "version": "3.0.0"
  },
+ "openapi": "3.0.0",
  "paths": {
   "/echo": {
    "post": {

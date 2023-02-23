@@ -35,7 +35,7 @@ func GenerateOpenApiSpec(options *TypesGenConfig) {
 			Version: "3.0.0",
 		},
 		Paths: spec.Paths{},
-		Components: spec.Components{
+		Components: &spec.Components{
 			RequestBodies: spec.RequestBodies{},
 		},
 	}
