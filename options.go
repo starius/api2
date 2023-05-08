@@ -15,6 +15,7 @@ type Config struct {
 	authorization string // Affects only clients.
 	client        HttpClient
 	maxBody       int64
+	human         bool
 }
 
 const defaultMaxBody = 10 * 1024 * 1024
@@ -49,5 +50,12 @@ func CustomClient(client HttpClient) Option {
 func MaxBody(maxBody int64) Option {
 	return func(config *Config) {
 		config.maxBody = maxBody
+	}
+}
+
+// Always produce pretty formatted JSON on both client and server.
+func HumanJSON(enabled bool) Option {
+	return func(config *Config) {
+		config.human = enabled
 	}
 }
