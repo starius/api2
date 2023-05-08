@@ -1,6 +1,7 @@
 package api2
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,11 +18,11 @@ type Router interface {
 	HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request))
 }
 
-func jsonError(w http.ResponseWriter, code int, format string, args ...interface{}) error {
+func jsonError(w http.ResponseWriter, human bool, code int, format string, args ...interface{}) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	errmsg := fmt.Sprintf(format, args...)
-	return json.NewEncoder(w).Encode(errorMessage{Error: errmsg})
+	return newEncoder(w, human).Encode(errorMessage{Error: errmsg})
 }
 
 // BindRoutes adds handlers of routes to http.ServeMux.
@@ -31,6 +32,7 @@ func BindRoutes(mux Router, routes []Route, opts ...Option) {
 		opt(config)
 	}
 	errorf := config.errorf
+	human := config.human
 
 	path2routes := make(map[string][]Route)
 	for _, route := range routes {
@@ -43,13 +45,19 @@ func BindRoutes(mux Router, routes []Route, opts ...Option) {
 			if _, has := method2handler[route.Method]; has {
 				panic(fmt.Sprintf("Duplicate pair (%s, %s)", path, route.Method))
 			}
-			method2handler[route.Method] = newHTTPHandler(route.Handler, route.Transport, errorf)
+			method2handler[route.Method] = newHTTPHandler(route.Handler, route.Transport, human, errorf)
 		}
 
 		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			// Calling FormValue before parsing JSON "eats" r.Body if Content-Type is
+			// application/x-www-form-urlencoded. This happens in curl for me.
+			human2 := human || r.FormValue("human") != ""
+			if human2 {
+				r = r.WithContext(context.WithValue(r.Context(), humanType{}, true))
+			}
 			handler, has := method2handler[r.Method]
 			if !has {
-				if err := jsonError(w, http.StatusMethodNotAllowed, "unsupported method: %v", r.Method); err != nil {
+				if err := jsonError(w, human2, http.StatusMethodNotAllowed, "unsupported method: %v", r.Method); err != nil {
 					errorf("%s handler failed to send MethodNotAllowed error to client: %v", r.URL.Path, err)
 				}
 				return
@@ -88,7 +96,7 @@ func GetMatcher(routes []Route) func(*http.Request) (*Route, bool) {
 	}
 }
 
-func newHTTPHandler(h interface{}, t Transport, errorf func(format string, args ...interface{})) http.HandlerFunc {
+func newHTTPHandler(h interface{}, t Transport, human bool, errorf func(format string, args ...interface{})) http.HandlerFunc {
 	if t == nil {
 		t = DefaultTransport
 	}

@@ -16,6 +16,7 @@ type Client struct {
 	errorf        func(format string, args ...interface{})
 	authorization string
 	maxBody       int64
+	human         bool
 }
 
 type signature struct {
@@ -71,6 +72,7 @@ func NewClient(routes []Route, baseURL string, opts ...Option) *Client {
 		errorf:        config.errorf,
 		authorization: config.authorization,
 		maxBody:       config.maxBody,
+		human:         config.human,
 	}
 }
 
@@ -111,6 +113,10 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 	}
 
 	url := c.baseURL + route.Path
+	if c.human {
+		url += "?human=on"
+		ctx = context.WithValue(ctx, humanType{}, true)
+	}
 
 	req, err := t.EncodeRequest(ctx, route.Method, url, request)
 	if err != nil {

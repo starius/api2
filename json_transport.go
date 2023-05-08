@@ -44,14 +44,25 @@ type JsonTransport struct {
 
 type humanType struct{}
 
+func newEncoder(w io.Writer, human bool) *json.Encoder {
+	encoder := json.NewEncoder(w)
+	if human {
+		encoder.SetIndent("", "  ")
+	}
+	return encoder
+}
+
+func hasHuman(ctx context.Context) bool {
+	if humanValue := ctx.Value(humanType{}); humanValue != nil {
+		return humanValue.(bool)
+	}
+	return false
+}
+
 func (h *JsonTransport) DecodeRequest(ctx context.Context, r *http.Request, req interface{}) (context.Context, error) {
 	if h.RequestDecoder != nil {
 		return h.RequestDecoder(ctx, r, req)
 	}
-
-	// Calling FormValue before parsing JSON "eats" r.Body if Content-Type is
-	// application/x-www-form-urlencoded. This happens in curl for me.
-	ctx = context.WithValue(ctx, humanType{}, r.FormValue("human") != "")
 
 	if err := readQueryHeaderCookie(req, r.Body, r.URL.Query(), r, r.Header, 0); err != nil {
 		return ctx, err
@@ -65,11 +76,7 @@ func (h *JsonTransport) EncodeResponse(ctx context.Context, w http.ResponseWrite
 		return h.ResponseEncoder(ctx, w, res)
 	}
 
-	human := false
-	if humanValue := ctx.Value(humanType{}); humanValue != nil {
-		human = humanValue.(bool)
-	}
-	body, err := writeQueryHeaderCookie(w, res, nil, nil, w.Header(), human)
+	body, err := writeQueryHeaderCookie(w, res, nil, nil, w.Header(), hasHuman(ctx))
 	if body != nil {
 		panic("unexpected body")
 	}
@@ -98,7 +105,7 @@ func (h *JsonTransport) EncodeError(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	code := errorToCode(err)
-	return h.jsonError(w, code, err)
+	return h.jsonError(w, hasHuman(ctx), code, err)
 }
 
 func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string, req interface{}) (*http.Request, error) {
@@ -114,8 +121,12 @@ func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse query part of URL: %w", err)
 	}
+	human := false
+	if humanValue := ctx.Value(humanType{}); humanValue != nil {
+		human = humanValue.(bool)
+	}
 	var requestBodyBuffer bytes.Buffer
-	body, err := writeQueryHeaderCookie(&requestBodyBuffer, req, query, request, request.Header, false)
+	body, err := writeQueryHeaderCookie(&requestBodyBuffer, req, query, request, request.Header, human)
 	if err != nil {
 		return nil, err
 	}
@@ -193,23 +204,23 @@ func detectErrorType(err error, registeredErrors map[string]error) (error, strin
 	return detectErrorType(err, registeredErrors)
 }
 
-func (h *JsonTransport) jsonError(w http.ResponseWriter, code int, err error) error {
+func (h *JsonTransport) jsonError(w http.ResponseWriter, human bool, code int, err error) error {
 	unwrapped, errType := detectErrorType(err, h.Errors)
 
 	msg := errorMessage{Error: fmt.Sprintf("%v", err)}
 	if errType != "" {
-		origError, err2 := json.Marshal(unwrapped)
-		if err2 != nil {
+		var buf bytes.Buffer
+		if err2 := newEncoder(&buf, human).Encode(unwrapped); err2 != nil {
 			log.Printf("Failed to serialize error of type %s: %v", errType, err2)
 		} else {
 			msg.Code = errType
-			msg.Detail = origError
+			msg.Detail = buf.Bytes()
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	return json.NewEncoder(w).Encode(msg)
+	return newEncoder(w, human).Encode(msg)
 }
 
 func (h *JsonTransport) BodyCloseNeeded(ctx context.Context, response, request interface{}) bool {
@@ -490,11 +501,7 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 			return nil, nil
 		}
 	} else {
-		encoder := json.NewEncoder(w)
-		if human {
-			encoder.SetIndent("", "  ")
-		}
-		return nil, encoder.Encode(bodyPtr)
+		return nil, newEncoder(w, human).Encode(bodyPtr)
 	}
 }
 
