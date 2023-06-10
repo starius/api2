@@ -271,6 +271,7 @@ type preparedType struct {
 	QueryMapping  []strMapping
 	HeaderMapping []strMapping
 	CookieMapping []strMapping
+	UrlMapping    []strMapping
 	JsonMapping   []intMapping
 	TypeForJson   reflect.Type
 	BodyField     int
@@ -297,6 +298,7 @@ func prepare(objType reflect.Type) *preparedType {
 		queryKey := field.Tag.Get("query")
 		headerKey := field.Tag.Get("header")
 		cookieKey := field.Tag.Get("cookie")
+		urlKey := field.Tag.Get("url")
 		isBodyField := field.Tag.Get("use_as_body") == "true"
 		isStatusField := field.Tag.Get("use_as_status") == "true"
 		if isBodyField {
@@ -317,6 +319,11 @@ func prepare(objType reflect.Type) *preparedType {
 			p.CookieMapping = append(p.CookieMapping, strMapping{
 				Field: i,
 				Key:   cookieKey,
+			})
+		} else if urlKey != "" {
+			p.UrlMapping = append(p.UrlMapping, strMapping{
+				Field: i,
+				Key:   urlKey,
 			})
 		} else if isBodyField {
 			p.BodyField = i
@@ -339,10 +346,10 @@ func prepare(objType reflect.Type) *preparedType {
 	if p.StatusField != noField {
 		statusFields = 1
 	}
-	if len(p.QueryMapping)+len(p.HeaderMapping)+len(p.CookieMapping)+statusFields == objType.NumField() {
+	if len(p.QueryMapping)+len(p.HeaderMapping)+len(p.CookieMapping)+len(p.UrlMapping)+statusFields == objType.NumField() {
 		p.NoJsonFields = true
 	}
-	if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 && len(p.CookieMapping) == 0 && p.StatusField == noField {
+	if len(p.QueryMapping) == 0 && len(p.HeaderMapping) == 0 && len(p.CookieMapping) == 0 && len(p.UrlMapping) == 0 && p.StatusField == noField {
 		p.NoSpecialFields = true
 	}
 	return p
@@ -455,6 +462,31 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 			if v := cookie.String(); v != "" {
 				header.Add("Set-Cookie", v)
 			}
+		}
+	}
+	if len(p.UrlMapping) != 0 {
+		if request == nil {
+			return nil, fmt.Errorf("must specify request to set URL parameters")
+		}
+		param2value := make(map[string]string, len(p.UrlMapping))
+		for _, m := range p.UrlMapping {
+			valueInterface := objValue.Field(m.Field).Interface()
+			value, err := toString(valueInterface)
+			if err != nil {
+				field := objType.Field(m.Field)
+				return nil, fmt.Errorf("failed to marshal value for field %s: %w", field.Name, err)
+			}
+			param2value[m.Key] = value
+		}
+		for _, path := range []*string{&request.URL.Path, &request.URL.RawPath} {
+			if len(*path) == 0 {
+				continue
+			}
+			path2, err := buildUrl(*path, param2value)
+			if err != nil {
+				return nil, err
+			}
+			*path = path2
 		}
 	}
 
@@ -624,6 +656,25 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 			if has {
 				cookiePtr := fieldPtr.(*http.Cookie)
 				*cookiePtr = *c
+			}
+		}
+	}
+
+	if len(p.UrlMapping) != 0 {
+		if request == nil {
+			return fmt.Errorf("must specify request to set URL parameters")
+		}
+		param2valueValue := request.Context().Value(paramMapType{})
+		if param2valueValue == nil {
+			return fmt.Errorf("param2value map is not attached to ctx")
+		}
+		param2value := param2valueValue.(map[string]string)
+		for _, m := range p.UrlMapping {
+			fieldPtr := objValue.Field(m.Field).Addr().Interface()
+			value := param2value[m.Key]
+			if err := fromString(fieldPtr, value); err != nil {
+				field := objType.Field(m.Field)
+				return fmt.Errorf("failed to parse value %q from URL parameter :%s for field %s: %w", value, m.Key, field.Name, err)
 			}
 		}
 	}

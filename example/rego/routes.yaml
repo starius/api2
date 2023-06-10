@@ -6,7 +6,7 @@ example:
       path: "/hello"
     Echo:
       method: "POST"
-      path: "/echo"
+      path: "/echo/:user"
     Since:
       method: "POST"
       path: "/since"

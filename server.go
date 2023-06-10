@@ -36,16 +36,18 @@ func BindRoutes(mux Router, routes []Route, opts ...Option) {
 
 	path2routes := make(map[string][]Route)
 	for _, route := range routes {
-		path2routes[route.Path] = append(path2routes[route.Path], route)
+		path := cutUrlParams(route.Path)
+		path2routes[path] = append(path2routes[path], route)
 	}
 
 	for path, routes := range path2routes {
-		method2handler := make(map[string]http.HandlerFunc, len(routes))
+		method2routes := make(map[string][]Route, len(routes))
 		for _, route := range routes {
-			if _, has := method2handler[route.Method]; has {
-				panic(fmt.Sprintf("Duplicate pair (%s, %s)", path, route.Method))
-			}
-			method2handler[route.Method] = newHTTPHandler(route.Handler, route.Transport, human, errorf)
+			method2routes[route.Method] = append(method2routes[route.Method], route)
+		}
+		method2handler := make(map[string]http.HandlerFunc, len(routes))
+		for method, routes := range method2routes {
+			method2handler[method] = newHTTPMethodHandler(routes, human, errorf)
 		}
 
 		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +98,40 @@ func GetMatcher(routes []Route) func(*http.Request) (*Route, bool) {
 	}
 }
 
-func newHTTPHandler(h interface{}, t Transport, human bool, errorf func(format string, args ...interface{})) http.HandlerFunc {
+func newHTTPMethodHandler(routes []Route, human bool, errorf func(format string, args ...interface{})) http.HandlerFunc {
+	if len(routes) == 1 && len(findUrlKeys(routes[0].Path)) == 0 {
+		// Single handler without URL parameters.
+		return newHTTPHandler(routes[0], human, errorf)
+	}
+	paths := make([]string, 0, len(routes))
+	handlers := make([]http.HandlerFunc, 0, len(routes))
+	for _, route := range routes {
+		paths = append(paths, route.Path)
+		handlers = append(handlers, newHTTPHandler(route, human, errorf))
+	}
+	c := newPathClassifier(paths)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		index, param2value := c.Classify(r.URL.Path)
+		if index == -1 {
+			// Calling FormValue before parsing JSON "eats" r.Body if Content-Type is
+			// application/x-www-form-urlencoded. This happens in curl for me.
+			human2 := human || r.FormValue("human") != ""
+			if err := jsonError(w, human2, http.StatusNotFound, "failed to find route by path"); err != nil {
+				errorf("%s handler failed to send NotFound error to client: %v", r.URL.Path, err)
+			}
+			return
+		}
+
+		handler := handlers[index]
+		r = r.WithContext(context.WithValue(r.Context(), paramMapType{}, param2value))
+		handler(w, r)
+	}
+}
+
+func newHTTPHandler(route Route, human bool, errorf func(format string, args ...interface{})) http.HandlerFunc {
+	h := route.Handler
+	t := route.Transport
 	if t == nil {
 		t = DefaultTransport
 	}
@@ -107,7 +142,7 @@ func newHTTPHandler(h interface{}, t Transport, human bool, errorf func(format s
 
 	handlerValue := reflect.ValueOf(h)
 	handlerType := handlerValue.Type()
-	validateHandler(handlerType)
+	validateHandler(handlerType, route.Path)
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

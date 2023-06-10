@@ -26,8 +26,17 @@ func main() {
 		panic(err)
 	}
 
+	_, err = client.Echo(ctx, &example.EchoRequest{
+		Session: helloRes.Session,
+		Text:    "test",
+	})
+	if err == nil {
+		panic("expected an error")
+	}
+
 	echoRes, err := client.Echo(ctx, &example.EchoRequest{
 		Session: helloRes.Session,
+		User:    "good-user",
 		Text:    "test",
 	})
 	if err != nil {

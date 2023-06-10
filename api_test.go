@@ -20,6 +20,7 @@ func TestValidateRequestResponse(t *testing.T) {
 	cases := []struct {
 		obj       interface{}
 		request   bool
+		path      string
 		wantPanic bool
 	}{
 		{
@@ -207,6 +208,45 @@ func TestValidateRequestResponse(t *testing.T) {
 
 		{
 			obj: struct {
+				Foo string `url:"foo"`
+			}{},
+			request:   true,
+			path:      "/post/:foo",
+			wantPanic: false,
+		},
+		{
+			obj: struct {
+				Foo string `url:"foo"`
+			}{},
+			request:   true,
+			path:      "",
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo string `json:"foo"`
+			}{},
+			request:   true,
+			path:      "/post/:foo",
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo string `json:"foo" url:"foo"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo string `url:"foo"`
+			}{},
+			request:   false,
+			wantPanic: true,
+		},
+
+		{
+			obj: struct {
 				Foo *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
 			}{},
 			request:   true,
@@ -302,7 +342,7 @@ func TestValidateRequestResponse(t *testing.T) {
 					message = r
 				}
 			}()
-			validateRequestResponse(reflect.TypeOf(tc.obj), tc.request)
+			validateRequestResponse(reflect.TypeOf(tc.obj), tc.request, tc.path)
 			return
 		}()
 		if gotPanic != tc.wantPanic {
@@ -387,6 +427,7 @@ func TestMethod(t *testing.T) {
 		}
 
 		f := method.Func()
-		validateHandler(reflect.TypeOf(f))
+		path := "/hello"
+		validateHandler(reflect.TypeOf(f), path)
 	}
 }

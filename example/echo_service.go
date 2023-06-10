@@ -63,6 +63,9 @@ func (s *EchoService) Echo(ctx context.Context, req *EchoRequest) (*EchoResponse
 	if !s.sessions[req.Session] {
 		return nil, fmt.Errorf("bad session")
 	}
+	if req.User != "good-user" {
+		return nil, fmt.Errorf("bad user")
+	}
 	return &EchoResponse{
 		Text: req.Text,
 	}, nil

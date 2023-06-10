@@ -108,6 +108,7 @@ func TestAPI(t *testing.T) {
 
 func TestQueryAndHeader(t *testing.T) {
 	type PostRequest struct {
+		UrlField     int `url:"url_field"`
 		JsonField    int `json:"json_field"`
 		QueryField   int `query:"query_field"`
 		HeaderField  int `header:"query_field"`
@@ -128,7 +129,7 @@ func TestQueryAndHeader(t *testing.T) {
 		}
 		return &PostResponse{
 			JsonField:   req.JsonField,
-			HeaderField: req.QueryField + req.HeaderField + req.CookieField,
+			HeaderField: req.QueryField + req.HeaderField + req.CookieField + req.UrlField,
 			CookieField: http.Cookie{
 				Name:  "cookie_field",
 				Value: "my cookie",
@@ -140,7 +141,7 @@ func TestQueryAndHeader(t *testing.T) {
 	}
 
 	routes := []api2.Route{
-		{Method: http.MethodPost, Path: "/number", Handler: postHandler, Transport: &api2.JsonTransport{}},
+		{Method: http.MethodPost, Path: "/number/:url_field", Handler: postHandler, Transport: &api2.JsonTransport{}},
 	}
 
 	mux := http.NewServeMux()
@@ -154,6 +155,7 @@ func TestQueryAndHeader(t *testing.T) {
 
 	postRes := &PostResponse{}
 	err := client.Call(ctx, postRes, &PostRequest{
+		UrlField:     6,
 		JsonField:    1,
 		QueryField:   2,
 		HeaderField:  3,
@@ -171,8 +173,8 @@ func TestQueryAndHeader(t *testing.T) {
 	if postRes.JsonField != 1 {
 		t.Errorf("JsonField=%d, want 1", postRes.JsonField)
 	}
-	if postRes.HeaderField != 2+3+4 {
-		t.Errorf("HeaderField=%d, want %d", postRes.HeaderField, 2+3+4)
+	if postRes.HeaderField != 2+3+4+6 {
+		t.Errorf("HeaderField=%d, want %d", postRes.HeaderField, 2+3+4+6)
 	}
 	if postRes.CookieField.Value != "my cookie" {
 		t.Errorf("CookieField.Value=%q, want %q", postRes.CookieField.Value, "my cookie")
