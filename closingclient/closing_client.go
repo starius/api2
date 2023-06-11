@@ -40,6 +40,7 @@ func (c *ClosingClient) Do(req *http.Request) (*http.Response, error) {
 	c.mu.Lock()
 	if c.closing {
 		c.mu.Unlock()
+		cancel()
 		return nil, fmt.Errorf("api2 client is closing")
 	}
 	key := c.lastCancelKey
