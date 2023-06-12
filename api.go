@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path"
 	"reflect"
+	"sort"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -53,7 +54,7 @@ var (
 )
 
 // validateHandler panics if handler is not of type func(ctx, *Request) (*Response, error)
-func validateHandler(handlerType reflect.Type) {
+func validateHandler(handlerType reflect.Type, path string) {
 	if handlerType.Kind() != reflect.Func {
 		panic(fmt.Sprintf("handler is %s, want func", handlerType.Kind()))
 	}
@@ -67,7 +68,7 @@ func validateHandler(handlerType reflect.Type) {
 	if handlerType.In(1).Elem().Kind() != reflect.Struct {
 		panic(fmt.Sprintf("handler's second argument must be a pointer to a struct, got %s", handlerType.In(1)))
 	}
-	validateRequestResponse(handlerType.In(1).Elem(), true)
+	validateRequestResponse(handlerType.In(1).Elem(), true, path)
 
 	if handlerType.NumOut() != 2 {
 		panic(fmt.Sprintf("handler must have 2 results, got %d", handlerType.NumOut()))
@@ -75,7 +76,7 @@ func validateHandler(handlerType reflect.Type) {
 	if handlerType.Out(0).Elem().Kind() != reflect.Struct {
 		panic(fmt.Sprintf("handler's first result must be a pointer to a struct, got %s", handlerType.Out(0)))
 	}
-	validateRequestResponse(handlerType.Out(0).Elem(), false)
+	validateRequestResponse(handlerType.Out(0).Elem(), false, "")
 	if handlerType.Out(1) != errorType {
 		panic(fmt.Sprintf("handler's second argument must be error, got %s", handlerType.Out(1)))
 	}
@@ -88,8 +89,9 @@ var (
 	intType        = reflect.TypeOf((*int)(nil)).Elem()
 )
 
-func validateRequestResponse(structType reflect.Type, request bool) {
+func validateRequestResponse(structType reflect.Type, request bool, path string) {
 	var jsonFields, bodyFields, statusFields []string
+	urlKeys := []string{}
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
 		hasJson := field.Tag.Get("json") != ""
@@ -100,6 +102,12 @@ func validateRequestResponse(structType reflect.Type, request bool) {
 		hasQuery := field.Tag.Get("query") != ""
 		hasHeader := field.Tag.Get("header") != ""
 		hasCookie := field.Tag.Get("cookie") != ""
+		urlKey := field.Tag.Get("url")
+		hasUrl := urlKey != ""
+
+		if hasUrl {
+			urlKeys = append(urlKeys, urlKey)
+		}
 
 		if hasProtobuf && !hasUseAsBody {
 			panic(fmt.Sprintf("field %s of struct %s: hasProtobuf=%v, so hasUseAsBody must also be %v", field.Name, structType.Name(), hasProtobuf, hasUseAsBody))
@@ -122,13 +130,13 @@ func validateRequestResponse(structType reflect.Type, request bool) {
 		}
 
 		sum := 0
-		for _, v := range []bool{hasJson, hasUseAsBody, hasUseAsStatus, hasQuery, hasHeader, hasCookie} {
+		for _, v := range []bool{hasJson, hasUseAsBody, hasUseAsStatus, hasQuery, hasHeader, hasCookie, hasUrl} {
 			if v {
 				sum++
 			}
 		}
 		if sum > 1 {
-			panic(fmt.Sprintf("field %s of struct %s: hasJson=%v, hasUseAsBody=%v, hasUseAsStatus=%v, hasQuery=%v, hasHeader=%v, hasCookie=%v want at most one to be true", field.Name, structType.Name(), hasJson, hasUseAsBody, hasUseAsStatus, hasQuery, hasHeader, hasCookie))
+			panic(fmt.Sprintf("field %s of struct %s: hasJson=%v, hasUseAsBody=%v, hasUseAsStatus=%v, hasQuery=%v, hasHeader=%v, hasCookie=%v, hasUrl=%v want at most one to be true", field.Name, structType.Name(), hasJson, hasUseAsBody, hasUseAsStatus, hasQuery, hasHeader, hasCookie, hasUrl))
 		}
 		if hasUseAsStatus && request {
 			panic(fmt.Sprintf("field %s of struct %s: hasUseAsStatus=%v, but HTTP status can only be set in responses", field.Name, structType.Name(), hasUseAsStatus))
@@ -138,6 +146,9 @@ func validateRequestResponse(structType reflect.Type, request bool) {
 		}
 		if hasQuery && !request {
 			panic(fmt.Sprintf("field %s of struct %s: hasQuery=%v, but query can only be used in requests", field.Name, structType.Name(), hasQuery))
+		}
+		if hasUrl && !request {
+			panic(fmt.Sprintf("field %s of struct %s: hasUrl=%v, but URL can only be used in requests", field.Name, structType.Name(), hasUrl))
 		}
 		if hasCookie && !request && field.Type != cookieType {
 			panic(fmt.Sprintf("field %s of struct %s: hasCookie=%v, response: cookie type is not http.Cookie, but it is required", field.Name, structType.Name(), hasCookie))
@@ -160,6 +171,12 @@ func validateRequestResponse(structType reflect.Type, request bool) {
 	}
 	if len(bodyFields) > 0 && len(jsonFields) > 0 {
 		panic(fmt.Sprintf("struct %s has both json (%v) and use_as_body (%v) fields", structType.Name(), jsonFields, bodyFields))
+	}
+	keysInUrl := findUrlKeys(path)
+	sort.Strings(keysInUrl)
+	sort.Strings(urlKeys)
+	if !reflect.DeepEqual(urlKeys, keysInUrl) {
+		panic(fmt.Sprintf("mismatch in URL keys: %#v in URL, %#v in struct", keysInUrl, urlKeys))
 	}
 }
 

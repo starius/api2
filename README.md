@@ -40,6 +40,9 @@ type BarRequest struct {
 	// These fields are cookies.
 	Foo string `cookie:"foo"`
 
+	// URL parameters present in URL template like "/path/:product".
+	Product string `url:"product"`
+
 	// These fields are skipped.
 	SkippedField int `json:"-"`
 }
@@ -110,7 +113,7 @@ func GetRoutes(s *Foo) []api2.Route {
 	return []api2.Route{
 		{
 			Method:    http.MethodPost,
-			Path:      "/v1/foo/bar",
+			Path:      "/v1/foo/bar/:product",
 			Handler:   s.Bar,
 			Transport: &api2.JsonTransport{},
 		},
@@ -157,6 +160,7 @@ routes := GetRoutes(nil)
 client := api2.NewClient(routes, "http://127.0.0.1:8080")
 barRes := &BarResponse{}
 err := client.Call(context.Background(), barRes, &BarRequest{
+	Product: "product1",
 	...
 })
 if err != nil {
@@ -164,6 +168,9 @@ if err != nil {
 }
 // Server's response is in variable barRes.
 ```
+
+The client sent request to path "/v1/foo/bar/product1", from which
+the server understood that product=product1.
 
 Note that you don't have to pass a real service object to GetRoutes
 on client side. You can pass nil, it is sufficient to pass all needed
@@ -182,7 +189,7 @@ type Service interface {
 
 func GetRoutes(s Service) []api2.Route {
 	return []api2.Route{
-		{Method: http.MethodPost, Path: "/v1/foo/bar", Handler: api2.Method(&s, "Bar"), Transport: &api2.JsonTransport{}},
+		{Method: http.MethodPost, Path: "/v1/foo/bar/:product", Handler: api2.Method(&s, "Bar"), Transport: &api2.JsonTransport{}},
 	}
 }
 ```

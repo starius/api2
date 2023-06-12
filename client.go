@@ -46,7 +46,7 @@ func NewClient(routes []Route, baseURL string, opts ...Option) *Client {
 			handler = m.Func()
 		}
 		handlerType := reflect.TypeOf(handler)
-		validateHandler(handlerType)
+		validateHandler(handlerType, route.Path)
 		key := signature{
 			request:  handlerType.In(1),
 			response: handlerType.Out(0),

@@ -40,6 +40,7 @@ type CustomType2 struct {
 }
 
 type EchoRequest struct {
+	User     string               `url:"user"`
 	Session  string               `header:"session"`
 	Text     string               `json:"text"`
 	internal string               //nolint:structcheck,unused

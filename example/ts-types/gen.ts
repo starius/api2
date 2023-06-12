@@ -12,7 +12,7 @@ example: {
 				{"query":["key"]},
 				{"header":["session"]}),
 			Echo: route<example.EchoRequest, example.EchoResponse>(
-				"POST", "/echo",
+				"POST", "/echo/:user",
 				{"header":["session"],"json":["text","bar","code","dir","items","maps"]},
 				{"json":["text"]}),
 			Since: route<example.SinceRequest, example.SinceResponse>(

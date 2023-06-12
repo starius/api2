@@ -177,7 +177,7 @@
  },
  "openapi": "3.0.0",
  "paths": {
-  "/echo": {
+  "/echo/:user": {
    "post": {
     "requestBody": {
      "$ref": "#/components/requestBodies/example.EchoRequest"
