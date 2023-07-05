@@ -76,4 +76,12 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(redirectRes.Status, redirectRes.URL)
+
+	rawRes, err := client.Raw(ctx, &example.RawRequest{
+		Token: []byte("secret"),
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(rawRes.Token))
 }

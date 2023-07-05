@@ -19,6 +19,15 @@
      }
     }
    },
+   "example.RawRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.RawRequest"
+      }
+     }
+    }
+   },
    "example.RedirectRequest": {
     "content": {
      "application/json": {
@@ -130,6 +139,12 @@
     ],
     "type": "number"
    },
+   "example.RawRequest": {
+    "type": "object"
+   },
+   "example.RawResponse": {
+    "type": "object"
+   },
    "example.RedirectRequest": {
     "properties": {
      "id": {
@@ -213,6 +228,31 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/example.HelloResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "example"
+    ]
+   }
+  },
+  "/raw": {
+   "post": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/example.RawRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/example.RawResponse"
         }
        }
       },

@@ -16,3 +16,6 @@ example:
     Redirect:
       method: "GET"
       path: "/redirect"
+    Raw:
+      method: "POST"
+      path: "/raw"

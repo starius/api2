@@ -76,6 +76,9 @@ If you use `use_as_body:"true"`, you can also set `is_protobuf:"true"`
 and put a protobuf type (convertible to proto.Message) in that field.
 It will be sent over wire as protobuf binary form.
 
+You can add `use_as_body:"true" is_raw:"true"` to a `[]byte` field,
+then it will keep the whole HTTP body.
+
 Streaming. If you use `use_as_body:"true"`, you can also set
 `is_stream:"true"`. In this case the field must be of type `io.ReadCloser`.
 On the client side put any object implementing `io.ReadCloser` to such
