@@ -494,6 +494,15 @@ func TestQueryAndHeader(t *testing.T) {
 
 		{
 			objPtr: &struct {
+				Foo []byte `use_as_body:"true" is_raw:"true"`
+			}{
+				Foo: []byte("Hello"),
+			},
+			wantBody: `Hello`,
+		},
+
+		{
+			objPtr: &struct {
 				Body []int `use_as_body:"true"`
 			}{
 				Body: []int{1, 2, 3},

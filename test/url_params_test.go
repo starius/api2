@@ -68,7 +68,7 @@ func TestUrlParams(t *testing.T) {
 
 	type CreateUserRequest struct {
 		UserId string `url:"user"`
-		Name   string `json:"name"`
+		Name   []byte `use_as_body:"true" is_raw:"true"`
 	}
 	type CreateUserResponse struct {
 	}
@@ -79,7 +79,7 @@ func TestUrlParams(t *testing.T) {
 			return nil, errors.AlreadyExists("user already exists: %s", req.UserId)
 		}
 		db[req.UserId] = &User{
-			Name:     req.Name,
+			Name:     string(req.Name),
 			Posts:    make(map[string]*Post),
 			Comments: make(map[string]*Comment),
 		}
@@ -230,7 +230,7 @@ func TestUrlParams(t *testing.T) {
 		CommentId string `url:"comment"`
 	}
 	type GetCommentResponse struct {
-		CommentText string `json:"comment_text"`
+		CommentText []byte `use_as_body:"true" is_raw:"true"`
 	}
 
 	handleGetComment := func(ctx context.Context, req *GetCommentRequest) (res *GetCommentResponse, err error) {
@@ -243,7 +243,7 @@ func TestUrlParams(t *testing.T) {
 			return nil, errors.NotFound("no such comment: %s", req.CommentId)
 		}
 		return &GetCommentResponse{
-			CommentText: comment.Text,
+			CommentText: []byte(comment.Text),
 		}, nil
 	}
 
@@ -327,11 +327,11 @@ func TestUrlParams(t *testing.T) {
 		var res CreateUserResponse
 		require.NoError(t, client.Call(ctx, &res, &CreateUserRequest{
 			UserId: "user1",
-			Name:   "Boris",
+			Name:   []byte("Boris"),
 		}))
 		require.NoError(t, client.Call(ctx, &res, &CreateUserRequest{
 			UserId: "user2",
-			Name:   "Petr",
+			Name:   []byte("Petr"),
 		}))
 	})
 
@@ -412,7 +412,7 @@ func TestUrlParams(t *testing.T) {
 			UserId:    "user1",
 			CommentId: "comment1",
 		}))
-		require.Equal(t, "Thank you", res.CommentText)
+		require.Equal(t, []byte("Thank you"), res.CommentText)
 	})
 
 	t.Run("create response for comment", func(t *testing.T) {

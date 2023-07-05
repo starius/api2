@@ -105,3 +105,9 @@ func (s *EchoService) Redirect(ctx context.Context, req *RedirectRequest) (*Redi
 		URL:    fmt.Sprintf("https://example.com/user?id=%s", req.ID),
 	}, nil
 }
+
+func (s *EchoService) Raw(ctx context.Context, req *RawRequest) (*RawResponse, error) {
+	return &RawResponse{
+		Token: req.Token,
+	}, nil
+}

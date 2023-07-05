@@ -254,6 +254,34 @@ func TestValidateRequestResponse(t *testing.T) {
 		},
 		{
 			obj: struct {
+				Foo []byte `use_as_body:"true" is_raw:"true"`
+			}{},
+			request:   true,
+			wantPanic: false,
+		},
+		{
+			obj: struct {
+				Foo string `use_as_body:"true" is_raw:"true"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
+				Foo []byte `use_as_body:"true" is_raw:"true"`
+			}{},
+			request:   false,
+			wantPanic: false,
+		},
+		{
+			obj: struct {
+				Foo *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true" is_raw:"true"`
+			}{},
+			request:   true,
+			wantPanic: true,
+		},
+		{
+			obj: struct {
 				Foo  *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
 				Foo2 *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
 			}{},

@@ -27,6 +27,10 @@ example: {
 				"GET", "/redirect",
 				{"query":["id"]},
 				{"header":["Location"]}),
+			Raw: route<example.RawRequest, example.RawResponse>(
+				"POST", "/raw",
+				{},
+				{}),
 	},
 },
 }
@@ -105,6 +109,14 @@ export type RedirectRequest = {
 
 export type RedirectResponse = {
 	Location?: string
+}
+
+
+export type RawRequest = {
+}
+
+
+export type RawResponse = {
 }
 
 

@@ -91,10 +91,19 @@ type RedirectResponse struct {
 	URL    string `header:"Location"`
 }
 
+type RawRequest struct {
+	Token []byte `use_as_body:"true" is_raw:"true"`
+}
+
+type RawResponse struct {
+	Token []byte `use_as_body:"true" is_raw:"true"`
+}
+
 type IEchoService interface {
 	Hello(ctx context.Context, req *HelloRequest) (*HelloResponse, error)
 	Echo(ctx context.Context, req *EchoRequest) (*EchoResponse, error)
 	Since(ctx context.Context, req *SinceRequest) (*SinceResponse, error)
 	Stream(ctx context.Context, req *StreamRequest) (*StreamResponse, error)
 	Redirect(ctx context.Context, req *RedirectRequest) (*RedirectResponse, error)
+	Raw(ctx context.Context, req *RawRequest) (*RawResponse, error)
 }

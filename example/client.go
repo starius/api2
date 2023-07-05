@@ -77,3 +77,12 @@ func (c *Client) Redirect(ctx context.Context, req *RedirectRequest) (res *Redir
 	}
 	return
 }
+
+func (c *Client) Raw(ctx context.Context, req *RawRequest) (res *RawResponse, err error) {
+	res = &RawResponse{}
+	err = c.api2client.Call(ctx, res, req)
+	if err != nil {
+		return nil, err
+	}
+	return
+}

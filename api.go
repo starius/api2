@@ -87,6 +87,7 @@ var (
 	readCloserType = reflect.TypeOf((*io.ReadCloser)(nil)).Elem()
 	cookieType     = reflect.TypeOf((*http.Cookie)(nil)).Elem()
 	intType        = reflect.TypeOf((*int)(nil)).Elem()
+	bytesType      = reflect.TypeOf((*[]byte)(nil)).Elem()
 )
 
 func validateRequestResponse(structType reflect.Type, request bool, path string) {
@@ -99,6 +100,7 @@ func validateRequestResponse(structType reflect.Type, request bool, path string)
 		hasUseAsStatus := field.Tag.Get("use_as_status") == "true"
 		hasProtobuf := field.Tag.Get("is_protobuf") == "true"
 		hasStream := field.Tag.Get("is_stream") == "true"
+		hasRaw := field.Tag.Get("is_raw") == "true"
 		hasQuery := field.Tag.Get("query") != ""
 		hasHeader := field.Tag.Get("header") != ""
 		hasCookie := field.Tag.Get("cookie") != ""
@@ -125,11 +127,21 @@ func validateRequestResponse(structType reflect.Type, request bool, path string)
 			}
 		}
 
-		if hasStream && hasProtobuf {
-			panic(fmt.Sprintf("field %s of struct %s: hasProtobuf=%v and hasStream=%v, but they must not be used together", field.Name, structType.Name(), hasProtobuf, hasStream))
+		if hasRaw && field.Type != bytesType {
+			panic(fmt.Sprintf("field %s of struct %s: hasRaw=%v, but the type of the field %s is not []byte", field.Name, structType.Name(), hasRaw, field.Type))
 		}
 
 		sum := 0
+		for _, v := range []bool{hasStream, hasProtobuf, hasRaw} {
+			if v {
+				sum++
+			}
+		}
+		if sum > 1 {
+			panic(fmt.Sprintf("field %s of struct %s: hasProtobuf=%v, hasStream=%v, hasRaw=%v, but they must not be used together", field.Name, structType.Name(), hasProtobuf, hasStream, hasRaw))
+		}
+
+		sum = 0
 		for _, v := range []bool{hasJson, hasUseAsBody, hasUseAsStatus, hasQuery, hasHeader, hasCookie, hasUrl} {
 			if v {
 				sum++

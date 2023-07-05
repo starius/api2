@@ -278,6 +278,7 @@ type preparedType struct {
 	StatusField   int
 	Protobuf      bool
 	Stream        bool
+	Raw           bool
 
 	// Special fields are query, header, cookie and status.
 	NoJsonFields    bool
@@ -304,6 +305,7 @@ func prepare(objType reflect.Type) *preparedType {
 		if isBodyField {
 			p.Protobuf = field.Tag.Get("is_protobuf") == "true"
 			p.Stream = field.Tag.Get("is_stream") == "true"
+			p.Raw = field.Tag.Get("is_raw") == "true"
 		}
 		if queryKey != "" {
 			p.QueryMapping = append(p.QueryMapping, strMapping{
@@ -532,6 +534,9 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 			}
 			return nil, nil
 		}
+	} else if p.Raw {
+		_, err := w.Write(*bodyPtr.(*[]byte))
+		return nil, err
 	} else {
 		return nil, newEncoder(w, human).Encode(bodyPtr)
 	}
@@ -555,7 +560,7 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 	if p.BodyField != noField {
 		// 'use_as_body' case.
 		fieldValue := objValue.Field(p.BodyField)
-		if !p.Stream {
+		if !p.Stream && !p.Raw {
 			if fieldValue.Kind() == reflect.Ptr {
 				// Fill the pointer with new object.
 				fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
@@ -581,6 +586,12 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 			}
 		} else if p.Stream {
 			fieldValue.Set(reflect.ValueOf(bodyReadCloser))
+		} else if p.Raw {
+			buf, err := ioutil.ReadAll(bodyReadCloser)
+			if err != nil {
+				return err
+			}
+			fieldValue.Set(reflect.ValueOf(buf))
 		} else {
 			if err := json.NewDecoder(bodyReadCloser).Decode(bodyPtr); err != nil {
 				return err
