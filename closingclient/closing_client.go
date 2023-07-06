@@ -32,9 +32,6 @@ func New(impl HttpClient) (*ClosingClient, error) {
 }
 
 func (c *ClosingClient) Do(req *http.Request) (*http.Response, error) {
-	c.wg.Add(1)
-	defer c.wg.Done()
-
 	ctx, cancel := context.WithCancel(req.Context())
 
 	c.mu.Lock()
@@ -43,6 +40,12 @@ func (c *ClosingClient) Do(req *http.Request) (*http.Response, error) {
 		cancel()
 		return nil, fmt.Errorf("api2 client is closing")
 	}
+
+	// Add(1) and Wait() must not be called in parallel.
+	// Call Add(1) under mutex protecting c.closing.
+	c.wg.Add(1)
+	defer c.wg.Done()
+
 	key := c.lastCancelKey
 	c.lastCancelKey++
 	c.cancels[key] = cancel
@@ -75,6 +78,10 @@ func (c *ClosingClient) Close() error {
 
 	c.impl.CloseIdleConnections()
 
+	// Add(1) and Wait() must not be called in parallel.
+	// By this point, c.closing=true, so if there are any calls
+	// of Do() between mu.Unlock above and this line, they
+	// won't result in Add(1).
 	c.wg.Wait()
 
 	if closer, ok := c.impl.(io.Closer); ok {
