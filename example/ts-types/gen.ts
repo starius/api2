@@ -14,7 +14,7 @@ example: {
 			Echo: route<example.EchoRequest, example.EchoResponse>(
 				"POST", "/echo/:user",
 				{"header":["session"],"json":["text","bar","code","dir","items","maps"]},
-				{"json":["text"]}),
+				{"json":["text","old","old2"]}),
 			Since: route<example.SinceRequest, example.SinceResponse>(
 				"POST", "/since",
 				{"header":["session"]},
@@ -81,6 +81,10 @@ export type UserSettings = Record<string, any> |  null
 // EchoResponse.
 export type EchoResponse = {
 	text: string // field comment.
+	/** @deprecated ! Use field Text. */
+	old: string
+	/** @deprecated The field is DEPRECATED! */
+	old2: string
 }
 
 

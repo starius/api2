@@ -54,6 +54,8 @@ type EchoRequest struct {
 // EchoResponse.
 type EchoResponse struct {
 	Text string `json:"text"` // field comment.
+	Old  string `json:"old"`  // Deprecated! Use field Text.
+	Old2 string `json:"old2"` // The field is DEPRECATED!
 }
 
 type HelloRequest struct {

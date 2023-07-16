@@ -108,6 +108,14 @@
    },
    "example.EchoResponse": {
     "properties": {
+     "old": {
+      "description": "@deprecated ! Use field Text.",
+      "type": "string"
+     },
+     "old2": {
+      "description": "@deprecated The field is DEPRECATED!",
+      "type": "string"
+     },
      "text": {
       "description": "field comment.",
       "type": "string"
