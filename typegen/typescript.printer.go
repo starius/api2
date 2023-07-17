@@ -6,6 +6,7 @@ import (
 	"io"
 	"path"
 	"reflect"
+	"strings"
 	"text/template"
 )
 
@@ -21,7 +22,12 @@ export declare namespace {{$namespace}} {
 
 const RecordTemplate = `{{ range $field := .Embedded}} {{$field | RefName}} & {{end}}{
 {{- range $field := .Fields}}
+	{{- if hasPrefix $field.Doc "@deprecated" }}
+	/** {{ $field.Doc }} */
+	{{$field | Row}}
+	{{- else }}
 	{{$field | Row}}{{if $field.Doc| ne ""}} // {{$field.Doc}}{{end}}
+	{{- end }}
 {{- end}}
 }
 `
@@ -118,6 +124,7 @@ func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier) {
 
 				return fmt.Sprintf("%s%s: %s%s", keyName, optionalText, fieldType, nullText)
 			},
+			"hasPrefix": strings.HasPrefix,
 		}).Parse(RecordTemplate)
 		panicIf(err)
 		w := &bytes.Buffer{}

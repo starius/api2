@@ -78,7 +78,15 @@ func (this *Parser) isVisited(t reflect.Type) bool {
 var re = regexp.MustCompile(`[\n\t\r]+`)
 
 func FormatDoc(str string) string {
-	return strings.TrimSpace(re.ReplaceAllString(str, " "))
+	doc := strings.TrimSpace(re.ReplaceAllString(str, " "))
+	idoc := strings.ToLower(doc)
+	if strings.HasPrefix(idoc, "deprecated") {
+		// Turn leading "deprecated into @deprecated".
+		doc = "@deprecated " + doc[len("deprecated"):]
+	} else if strings.Contains(idoc, "deprecated") {
+		doc = "@deprecated " + doc
+	}
+	return doc
 }
 
 func (this *Parser) visitType(t reflect.Type) {
