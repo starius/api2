@@ -4,12 +4,12 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"sync"
 	"testing"
 
 	"github.com/starius/api2"
 	"github.com/starius/api2/errors"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCSV(t *testing.T) {
@@ -58,33 +58,19 @@ func TestCSV(t *testing.T) {
 		}
 	}()
 
-	err := client.Call(context.Background(), res, req)
-	if err != nil {
-		t.Errorf("request failed: %v.", err)
-	}
+	require.NoError(t, client.Call(context.Background(), res, req))
 
 	wg.Wait()
 
-	if res.HttpCode != http.StatusOK {
-		t.Errorf("got different HTTP status")
-	}
-
-	if res.HttpHeaders.Get("test-header") != "test value" {
-		t.Errorf("got different HTTP headers")
-	}
-
-	wantHeader := []string{"Name", "Age"}
-	if !reflect.DeepEqual(res.CsvHeader, wantHeader) {
-		t.Errorf("got different CSV headers")
-	}
+	require.Equal(t, http.StatusOK, res.HttpCode)
+	require.Equal(t, "test value", res.HttpHeaders.Get("test-header"))
+	require.Equal(t, []string{"Name", "Age"}, res.CsvHeader)
 
 	wantRows := [][]string{
 		{"Alice", "31"},
 		{"Bob", "13"},
 	}
-	if !reflect.DeepEqual(results, wantRows) {
-		t.Errorf("got different rows")
-	}
+	require.Equal(t, wantRows, results)
 }
 
 func TestLargeCSV(t *testing.T) {
@@ -135,16 +121,11 @@ func TestLargeCSV(t *testing.T) {
 		}
 	}()
 
-	err := client.Call(context.Background(), res, req)
-	if err != nil {
-		t.Errorf("request failed: %v.", err)
-	}
+	require.NoError(t, client.Call(context.Background(), res, req))
 
 	wg.Wait()
 
-	if count != lines {
-		t.Errorf("got %d lines, want %d", count, lines)
-	}
+	require.Equal(t, lines, count)
 }
 
 func TestErrorCSV(t *testing.T) {
@@ -174,16 +155,9 @@ func TestErrorCSV(t *testing.T) {
 	}
 
 	err := client.Call(context.Background(), res, req)
-	if err == nil {
-		t.Fatalf("did not get an expected error")
-	}
+	require.Error(t, err)
 
 	code := err.(api2.HttpError).HttpCode()
-	if code != http.StatusNotFound {
-		t.Fatalf("wrong code: want %d, got %d", http.StatusNotFound, code)
-	}
-
-	if err.Error() != wantMessage {
-		t.Fatalf("wrong message: want %q, got %q", wantMessage, err.Error())
-	}
+	require.Equal(t, http.StatusNotFound, code)
+	require.Equal(t, wantMessage, err.Error())
 }
