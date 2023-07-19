@@ -44,11 +44,22 @@ func csvEncodeResponse(ctx context.Context, w http.ResponseWriter, res0 interfac
 
 	w.WriteHeader(res.HttpCode)
 
+	httpFlusher, hasFlusher := w.(http.Flusher)
+
 	csvWriter := csv.NewWriter(w)
 	csvWriter.UseCRLF = true
+
 	if err := csvWriter.Write(res.CsvHeader); err != nil {
 		return err
 	}
+	csvWriter.Flush()
+	if hasFlusher {
+		httpFlusher.Flush()
+	}
+	if err := csvWriter.Error(); err != nil {
+		return err
+	}
+
 	for record := range res.Rows {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -56,10 +67,13 @@ func csvEncodeResponse(ctx context.Context, w http.ResponseWriter, res0 interfac
 		if err := csvWriter.Write(record); err != nil {
 			return err
 		}
-	}
-	csvWriter.Flush()
-	if err := csvWriter.Error(); err != nil {
-		return err
+		csvWriter.Flush()
+		if hasFlusher {
+			httpFlusher.Flush()
+		}
+		if err := csvWriter.Error(); err != nil {
+			return err
+		}
 	}
 
 	return nil
