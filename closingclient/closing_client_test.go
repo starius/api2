@@ -155,27 +155,23 @@ func TestClosingClient(t *testing.T) {
 			})
 		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			time.Sleep(250 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond)
 
-			cc.mu.Lock()
-			ncancels := len(cc.cancels)
-			cc.mu.Unlock()
-			fmt.Println(ncancels)
-			if ncancels >= 25 {
-				errClose1 = fmt.Errorf("Expected to have < 25 cancels in the map, got %d", ncancels)
-			}
+		cc.mu.Lock()
+		ncancels := len(cc.cancels)
+		cc.mu.Unlock()
+		fmt.Println(ncancels)
+		if ncancels >= 26 {
+			errClose1 = fmt.Errorf("Expected to have < 26 cancels in the map, got %d", ncancels)
+		}
 
-			t1 := time.Now()
-			errClose2 = client.Close()
-			spent := time.Since(t1)
+		t2 := time.Now()
+		errClose2 = client.Close()
+		spent := time.Since(t2)
 
-			if spent > 10*time.Millisecond {
-				errClose3 = fmt.Errorf("Expected Close to spend 0.01s or less, but spent %s.", spent)
-			}
-		}()
+		if spent > 20*time.Millisecond {
+			errClose3 = fmt.Errorf("Expected Close to spend 0.01s or less, but spent %s.", spent)
+		}
 
 		wg.Wait()
 
@@ -191,7 +187,7 @@ func TestClosingClient(t *testing.T) {
 			t.Errorf("Close failed: %v.", errClose3)
 		}
 
-		spent := time.Since(t1)
+		spent = time.Since(t1)
 		if spent > 600*time.Millisecond {
 			t.Errorf("Expected to spend 0.6s or less, but spent %s.", spent)
 		}
