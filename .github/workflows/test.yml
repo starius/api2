@@ -1,0 +1,47 @@
+name: Test api2
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        go-version:
+          - 1.19
+          - 1.21
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Test
+        run: |
+          go version
+          go test -v ./...
+
+      - name: Test with race
+        run: |
+          go test -v -race ./...
+
+      - name: Benchmark tests
+        run: |
+          go test -v ./... -bench . -run Benchmark
+
+      - name: Example
+        run: |
+          go generate -v ./example/
+          go build -v ./example/app/
+          go build -v ./example/client/
+          ./app &
+          sleep 10
+          ./client
