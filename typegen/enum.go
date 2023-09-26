@@ -7,6 +7,7 @@ import (
 	"path"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 type astEnum struct {
@@ -37,7 +38,17 @@ func getEnumsFromAst(pkgName, typename string) ([]astEnum, error) {
 			}
 		}
 	}
-	return enums, nil
+
+	// Drop the element if it is *Count - not a real member.
+	enums2 := make([]astEnum, 0, len(enums))
+	for _, e := range enums {
+		if strings.HasSuffix(e.name, "Count") {
+			continue
+		}
+		enums2 = append(enums2, e)
+	}
+
+	return enums2, nil
 }
 
 type EnumValue struct {

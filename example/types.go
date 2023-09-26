@@ -18,6 +18,7 @@ const (
 	East
 	South
 	West
+	DirectionCount
 )
 
 type OpCode byte
