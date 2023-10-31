@@ -61,7 +61,7 @@ func (this *EnumValue) Stringify() string {
 	switch k {
 	case reflect.String:
 		return strconv.Quote(this.value.String())
-	case reflect.Int:
+	case reflect.Int, reflect.Int32:
 		_, hasToString := this.value.Type().MethodByName("String")
 		if hasToString {
 			return strconv.Quote(fmt.Sprintf("%v", this.value))
