@@ -1,6 +1,7 @@
 package typegen
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/constant"
 	"go/types"
@@ -57,18 +58,27 @@ type EnumValue struct {
 }
 
 func (this *EnumValue) Stringify() string {
-	k := this.value.Kind()
-	switch k {
+	switch this.value.Kind() {
 	case reflect.String:
 		return strconv.Quote(this.value.String())
-	case reflect.Int, reflect.Int32:
-		_, hasToString := this.value.Type().MethodByName("String")
-		if hasToString {
-			return strconv.Quote(fmt.Sprintf("%v", this.value))
-		} else {
-			return fmt.Sprintf("%d", this.value.Int())
-		}
 	}
+
+	switch t := this.value.Interface().(type) {
+	case json.Marshaler:
+		value, err := t.MarshalJSON()
+		if err != nil {
+			panic(err)
+		}
+		return string(value)
+	case fmt.Stringer:
+		return strconv.Quote(t.String())
+	}
+
+	switch this.value.Kind() {
+	case reflect.Int, reflect.Int32:
+		return fmt.Sprintf("%d", this.value.Int())
+	}
+
 	return ""
 }
 
