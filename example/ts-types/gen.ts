@@ -14,7 +14,7 @@ example: {
 			Echo: route<example.EchoRequest, example.EchoResponse>(
 				"POST", "/echo/:user",
 				{"header":["session"],"json":["text","bar","code","dir","items","maps"]},
-				{"json":["text","old","old2"]}),
+				{"json":["text","old","old2","color"]}),
 			Since: route<example.SinceRequest, example.SinceResponse>(
 				"POST", "/since",
 				{"header":["session"]},
@@ -35,15 +35,20 @@ example: {
 },
 }
 export const example_OpCodeEnum = {
-    "Op_Add": ,
-    "Op_Read": ,
-    "Op_Write": ,
+    "Op_Add": "add",
+    "Op_Read": "read",
+    "Op_Write": "write",
 } as const
 export const example_DirectionEnum = {
     "East": 1,
     "North": 0,
     "South": 2,
     "West": 3,
+} as const
+export const example_ColorEnum = {
+    "ColorBlue": "color_blue",
+    "ColorGreen": "color_green",
+    "ColorRed": "color_red",
 } as const
 
 export declare namespace example {
@@ -85,8 +90,11 @@ export type EchoResponse = {
 	old: string
 	/** @deprecated The field is DEPRECATED! */
 	old2: string
+	color: example.Color
 }
 
+
+export type Color = typeof example_ColorEnum[keyof typeof example_ColorEnum]
 
 export type SinceRequest = {
 	session?: string

@@ -3,7 +3,9 @@ package example
 //go:generate go run ./gen/...
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"time"
 
@@ -28,6 +30,68 @@ const (
 	Op_Write
 	Op_Add
 )
+
+func (o OpCode) String() string {
+	if o == Op_Read {
+		return "read"
+	} else if o == Op_Write {
+		return "write"
+	} else if o == Op_Add {
+		return "add"
+	} else {
+		return ""
+	}
+}
+
+type Color byte
+
+const (
+	ColorRed Color = iota + 1
+	ColorGreen
+	ColorBlue
+)
+
+// If a type has both MarshalJSON and String, MarshalJSON is used
+// to produce enum values.
+
+func (c Color) String() string {
+	if c == ColorRed {
+		return "red"
+	} else if c == ColorGreen {
+		return "green"
+	} else if c == ColorBlue {
+		return "blue"
+	} else {
+		return ""
+	}
+}
+
+func (c Color) MarshalJSON() ([]byte, error) {
+	if c == ColorRed {
+		return []byte(`"color_red"`), nil
+	} else if c == ColorGreen {
+		return []byte(`"color_green"`), nil
+	} else if c == ColorBlue {
+		return []byte(`"color_blue"`), nil
+	} else {
+		return []byte(`""`), nil
+	}
+}
+
+func (c *Color) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`"color_red"`)) {
+		*c = ColorRed
+	} else if bytes.Equal(data, []byte(`"color_green"`)) {
+		*c = ColorGreen
+	} else if bytes.Equal(data, []byte(`"color_blue"`)) {
+		*c = ColorBlue
+	} else if bytes.Equal(data, []byte(`""`)) {
+		*c = 0
+	} else {
+		return fmt.Errorf("unknown color")
+	}
+	return nil
+}
 
 type UserSettings map[string]interface{}
 type CustomType struct {
@@ -54,9 +118,10 @@ type EchoRequest struct {
 
 // EchoResponse.
 type EchoResponse struct {
-	Text string `json:"text"` // field comment.
-	Old  string `json:"old"`  // Deprecated! Use field Text.
-	Old2 string `json:"old2"` // The field is DEPRECATED!
+	Text  string `json:"text"` // field comment.
+	Old   string `json:"old"`  // Deprecated! Use field Text.
+	Old2  string `json:"old2"` // The field is DEPRECATED!
+	Color Color  `json:"color"`
 }
 
 type HelloRequest struct {
