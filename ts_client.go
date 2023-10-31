@@ -89,11 +89,12 @@ var tsClientTemplate = template.Must(template.New("ts_static_client").Parse(tsCl
 var tsClientUtilsTemplate = template.Must(template.New("ts_static_client_utils").Parse(templateHeaderDefault))
 
 type TypesGenConfig struct {
-	OutDir         string
-	ClientTemplate *template.Template
-	Routes         []interface{}
-	Types          []interface{}
-	Blacklist      []BlacklistItem
+	OutDir          string
+	ClientTemplate  *template.Template
+	Routes          []interface{}
+	Types           []interface{}
+	Blacklist       []BlacklistItem
+	EnumsWithPrefix bool
 }
 
 func panicIf(err error) {
@@ -145,7 +146,7 @@ func GenerateTSClient(options *TypesGenConfig) {
 		panicIf(err)
 	}
 	parser.ParseRaw(options.Types...)
-	typegen.PrintTsTypes(parser, typesFile, SerializeCustom)
+	typegen.PrintTsTypes(parser, typesFile, SerializeCustom, typegen.EnumsWithPrefix(options.EnumsWithPrefix))
 	panicIf(err)
 
 }

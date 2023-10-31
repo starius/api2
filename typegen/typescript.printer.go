@@ -76,7 +76,33 @@ func stringifyCustom(t reflect.Type) string {
 
 type Stringifier = func(t reflect.Type) string
 
-func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier) {
+type TsTypesConfig struct {
+	enumsWithPrefix bool
+}
+
+type TsTypesOption func(*TsTypesConfig)
+
+func EnumsWithPrefix(value bool) TsTypesOption {
+	return func(c *TsTypesConfig) {
+		c.enumsWithPrefix = value
+	}
+}
+
+func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier, opts ...TsTypesOption) {
+	var config TsTypesConfig
+	for _, opt := range opts {
+		opt(&config)
+	}
+
+	enumName := func(t *EnumDef) string {
+		if config.enumsWithPrefix {
+			pkg := path.Base(t.GetPackage())
+			return fmt.Sprintf("%s_%sEnum", pkg, t.GetName())
+		} else {
+			return fmt.Sprintf("%sEnum", t.GetName())
+		}
+	}
+
 	if stringify == nil {
 		stringify = stringifyCustom
 	}
@@ -137,7 +163,7 @@ func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier) {
 		"SerializeEnum": func(t IType) string {
 			switch v := t.(type) {
 			case *EnumDef:
-				res := fmt.Sprintf("export const %sEnum  = {\n", t.GetName())
+				res := fmt.Sprintf("export const %s = {\n", enumName(v))
 				for _, v := range v.Values {
 					res += fmt.Sprintf("    \"%s\": %s,\n", v.name, v.Stringify())
 				}
@@ -152,7 +178,7 @@ func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier) {
 				return fmt.Sprintf("export type %s = %s", v.Name, recordToString(v))
 			case *EnumDef:
 				res := ""
-				res += fmt.Sprintf("export type %s = typeof %s[keyof typeof %s]", t.GetName(), t.GetName()+"Enum", t.GetName()+"Enum")
+				res += fmt.Sprintf("export type %s = typeof %s[keyof typeof %s]", t.GetName(), enumName(v), enumName(v))
 				return res
 			case *TypeDef:
 				typeStr := typeToString(v.T, func(t reflect.Type) string {
