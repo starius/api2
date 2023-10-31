@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -235,14 +234,14 @@ func generateClient(getRoutes ...interface{}) error {
 	}
 
 	// Check that the file does not exist or was generated.
-	oldContent, err := ioutil.ReadFile(clientFile)
+	oldContent, err := os.ReadFile(clientFile)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("unknown error when reading from %s: %v", clientFile, err)
 	} else if err == nil && !codeGeneratedRE.Match(oldContent) {
 		return fmt.Errorf("file %s exists and was not generated; please remove it to proceed", clientFile)
 	}
 
-	if err := ioutil.WriteFile(clientFile, []byte(code), 0644); err != nil {
+	if err := os.WriteFile(clientFile, []byte(code), 0644); err != nil {
 		return fmt.Errorf("failed to write file %s: %v", clientFile, err)
 	}
 
