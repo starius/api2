@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -139,10 +138,10 @@ func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string
 		body := bytes.NewReader(requestBody)
 		snapshot := *body
 		request.ContentLength = int64(len(requestBody))
-		request.Body = ioutil.NopCloser(body)
+		request.Body = io.NopCloser(body)
 		request.GetBody = func() (io.ReadCloser, error) {
 			r := snapshot
-			return ioutil.NopCloser(&r), nil
+			return io.NopCloser(&r), nil
 		}
 	}
 
@@ -166,7 +165,7 @@ func (h *JsonTransport) DecodeError(ctx context.Context, res *http.Response) err
 		return h.ErrorDecoder(ctx, res)
 	}
 
-	buf, err := ioutil.ReadAll(res.Body)
+	buf, err := io.ReadAll(res.Body)
 	if err != nil {
 		return err
 	}
@@ -577,7 +576,7 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 			if !ok {
 				panic("protobuf field is not of type proto.Message")
 			}
-			buf, err := ioutil.ReadAll(bodyReadCloser)
+			buf, err := io.ReadAll(bodyReadCloser)
 			if err != nil {
 				return err
 			}
@@ -587,7 +586,7 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 		} else if p.Stream {
 			fieldValue.Set(reflect.ValueOf(bodyReadCloser))
 		} else if p.Raw {
-			buf, err := ioutil.ReadAll(bodyReadCloser)
+			buf, err := io.ReadAll(bodyReadCloser)
 			if err != nil {
 				return err
 			}
@@ -619,7 +618,7 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 
 	if !p.Stream {
 		// Drain the reader in case we skipped parsing or something is left.
-		if _, err := io.Copy(ioutil.Discard, bodyReadCloser); err != nil {
+		if _, err := io.Copy(io.Discard, bodyReadCloser); err != nil {
 			return err
 		}
 	}

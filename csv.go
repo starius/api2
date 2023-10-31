@@ -6,7 +6,6 @@ import (
 	"encoding/csv"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -130,7 +129,7 @@ func csvEncodeError(ctx context.Context, w http.ResponseWriter, err error) error
 }
 
 func csvDecodeError(ctx context.Context, res *http.Response) error {
-	message, err := ioutil.ReadAll(res.Body)
+	message, err := io.ReadAll(res.Body)
 	if err != nil {
 		return err
 	}

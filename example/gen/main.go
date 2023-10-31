@@ -15,6 +15,7 @@ func main() {
 			&example.CustomType{},
 			&example.CustomType2{},
 		},
+		EnumsWithPrefix: true,
 	})
 	api2.GenerateOpenApiSpec(&api2.TypesGenConfig{
 		OutDir: "./openapi",

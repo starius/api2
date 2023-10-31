@@ -34,12 +34,12 @@ example: {
 	},
 },
 }
-export const OpCodeEnum  = {
+export const example_OpCodeEnum = {
     "Op_Add": ,
     "Op_Read": ,
     "Op_Write": ,
 } as const
-export const DirectionEnum  = {
+export const example_DirectionEnum = {
     "East": 1,
     "North": 0,
     "South": 2,
@@ -69,9 +69,9 @@ export type EchoRequest = {
 }
 
 
-export type OpCode = typeof OpCodeEnum[keyof typeof OpCodeEnum]
+export type OpCode = typeof example_OpCodeEnum[keyof typeof example_OpCodeEnum]
 
-export type Direction = typeof DirectionEnum[keyof typeof DirectionEnum]
+export type Direction = typeof example_DirectionEnum[keyof typeof example_DirectionEnum]
 
 export type CustomType2 =  example.UserSettings & {
 }
