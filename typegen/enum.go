@@ -7,6 +7,7 @@ import (
 	"go/types"
 	"path"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -15,6 +16,8 @@ type astEnum struct {
 	name  string
 	value constant.Value
 }
+
+var typegenIgnoreRe = regexp.MustCompile(`typegen_ignore\(([a-zA-Z_][a-zA-Z0-9_]*)\)`)
 
 func getEnumsFromAst(pkgName, typename string) ([]astEnum, error) {
 	res, err := GetPackages(pkgName)
@@ -40,10 +43,32 @@ func getEnumsFromAst(pkgName, typename string) ([]astEnum, error) {
 		}
 	}
 
+	// Docs of const group can contain the following text:
+	// typegen_ignore(xxx), where xxx is enum member name.
+	// Such enum members are skipped.
+	ignored := make(map[string]struct{})
+	_, typeWithoutPkg, found := strings.Cut(typename, ".")
+	if !found {
+		panic("bad typename: " + typename)
+	}
+	for _, t := range res.Docs.Types {
+		if t.Name != typeWithoutPkg {
+			continue
+		}
+		for _, c := range t.Consts {
+			for _, m := range typegenIgnoreRe.FindAllStringSubmatch(c.Doc, -1) {
+				ignored[m[1]] = struct{}{}
+			}
+		}
+	}
+
 	// Drop the element if it is *Count - not a real member.
 	enums2 := make([]astEnum, 0, len(enums))
 	for _, e := range enums {
 		if strings.HasSuffix(e.name, "Count") {
+			continue
+		}
+		if _, has := ignored[e.name]; has {
 			continue
 		}
 		enums2 = append(enums2, e)

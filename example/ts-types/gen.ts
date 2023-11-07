@@ -40,14 +40,11 @@ export const example_OpCodeEnum = {
     "Op_Write": "write",
 } as const
 export const example_DirectionEnum = {
-    "East": 1,
     "North": 0,
     "South": 2,
-    "West": 3,
 } as const
 export const example_ColorEnum = {
     "ColorBlue": "color_blue",
-    "ColorGreen": "color_green",
     "ColorRed": "color_red",
 } as const
 
