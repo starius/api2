@@ -60,7 +60,6 @@
    "example.Color": {
     "enum": [
      "color_blue",
-     "color_green",
      "color_red"
     ],
     "type": "number"
@@ -75,10 +74,8 @@
    },
    "example.Direction": {
     "enum": [
-     1,
      0,
-     2,
-     3
+     2
     ],
     "type": "number"
    },

@@ -25,6 +25,7 @@ func NewFromTypes(types ...interface{}) *Parser {
 	p.Parse(p.rawTypes...)
 	return p
 }
+
 func NewParser(types ...RawType) *Parser {
 	p := &Parser{}
 	p.seen = make(map[reflect.Type]IType)

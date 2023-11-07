@@ -15,6 +15,11 @@ import (
 
 type Direction int
 
+// Values of Direction.
+//
+// Enum members can be skipped in tx and openapi.json:
+// typegen_ignore(East)
+// typegen_ignore(West)
 const (
 	North Direction = iota
 	East
@@ -45,6 +50,7 @@ func (o OpCode) String() string {
 
 type Color byte
 
+// typegen_ignore(ColorGreen)
 const (
 	ColorRed Color = iota + 1
 	ColorGreen
