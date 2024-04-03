@@ -114,6 +114,101 @@ func TestStream(t *testing.T) {
 	}
 }
 
+func TestStreamRequestOnly(t *testing.T) {
+	type Request struct {
+		Body io.ReadCloser `use_as_body:"true" is_stream:"true"`
+	}
+
+	type Response struct {
+		Foo string `json:"foo"`
+	}
+
+	handler := func(ctx context.Context, req *Request) (res *Response, err error) {
+		data, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		return &Response{
+			Foo: string(data),
+		}, nil
+	}
+
+	routes := []api2.Route{
+		{Method: http.MethodGet, Path: "/stream", Handler: handler},
+	}
+
+	mux := http.NewServeMux()
+	api2.BindRoutes(mux, routes)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	client := api2.NewClient(routes, server.URL)
+
+	rc := &closeRecorder{r: bytes.NewReader([]byte("Hello"))}
+
+	req := &Request{
+		Body: rc,
+	}
+	res := &Response{}
+
+	err := client.Call(context.Background(), res, req)
+	if err != nil {
+		t.Errorf("request failed: %v.", err)
+	}
+
+	if !rc.closed {
+		t.Errorf("expected the library to close the request reader")
+	}
+
+	require.Equal(t, "Hello", res.Foo)
+}
+
+func TestStreamResponseOnly(t *testing.T) {
+	type Request struct {
+		Foo string `json:"foo"`
+	}
+
+	type Response struct {
+		Body io.ReadCloser `use_as_body:"true" is_stream:"true"`
+	}
+
+	handler := func(ctx context.Context, req *Request) (res *Response, err error) {
+		return &Response{
+			Body: io.NopCloser(bytes.NewReader([]byte(req.Foo))),
+		}, nil
+	}
+
+	routes := []api2.Route{
+		{Method: http.MethodGet, Path: "/stream", Handler: handler},
+	}
+
+	mux := http.NewServeMux()
+	api2.BindRoutes(mux, routes)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	client := api2.NewClient(routes, server.URL)
+
+	req := &Request{
+		Foo: "Hello",
+	}
+	res := &Response{}
+
+	err := client.Call(context.Background(), res, req)
+	if err != nil {
+		t.Errorf("request failed: %v.", err)
+	}
+
+	buf, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Errorf("failed to read response body: %v.", err)
+	}
+	want := []byte("Hello")
+	if !bytes.Equal(buf, want) {
+		t.Errorf("got buf=%v, want %v", buf, want)
+	}
+}
+
 func TestStreamNoBodyErrors(t *testing.T) {
 	type Request struct {
 		Body            io.ReadCloser `use_as_body:"true" is_stream:"true"`
