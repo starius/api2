@@ -133,7 +133,7 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 	}
 	res.Body = http.MaxBytesReader(nil, res.Body, c.maxBody)
 	defer func() {
-		if !bodyCloseNeeded(ctx, request, response, t) {
+		if !bodyCloseNeeded(ctx, response, request, t) {
 			return
 		}
 		if err := res.Body.Close(); err != nil {
