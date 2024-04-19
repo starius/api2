@@ -211,12 +211,15 @@ You can find an example in directory [example](./example).
 To build and run it:
 
 ```
-$ go get github.com/starius/api2/example/...
+$ cd api2/
+$ go install ./example/...
 $ app &
 $ client
 test
 87672h0m0s
 ABC XYZ
+302 https://example.com/user?id=user123
+secret
 ```
 
 Code generation code is located in directory [example/gen](./example/gen).
