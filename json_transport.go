@@ -183,7 +183,7 @@ func (h *JsonTransport) DecodeError(ctx context.Context, res *http.Response) err
 			return fmt.Errorf("failed to decode error message %s of type %s: %v", string(msg.Detail), errType, err)
 		}
 		return errPtrValue.Elem().Interface().(error)
-	} else {
+	} else if errType != "" {
 		log.Printf("Unknown error type: %s", errType)
 	}
 
