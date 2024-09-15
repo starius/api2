@@ -63,6 +63,10 @@ func (h *JsonTransport) DecodeRequest(ctx context.Context, r *http.Request, req 
 		return h.RequestDecoder(ctx, r, req)
 	}
 
+	return h.RawDecodeRequest(ctx, r, req)
+}
+
+func (h *JsonTransport) RawDecodeRequest(ctx context.Context, r *http.Request, req interface{}) (context.Context, error) {
 	if err := readQueryHeaderCookie(req, r.Body, r.URL.Query(), r, r.Header, 0); err != nil {
 		return ctx, err
 	}
@@ -75,6 +79,10 @@ func (h *JsonTransport) EncodeResponse(ctx context.Context, w http.ResponseWrite
 		return h.ResponseEncoder(ctx, w, res)
 	}
 
+	return h.RawEncodeResponse(ctx, w, res)
+}
+
+func (h *JsonTransport) RawEncodeResponse(ctx context.Context, w http.ResponseWriter, res interface{}) error {
 	body, err := writeQueryHeaderCookie(w, res, nil, nil, w.Header(), hasHuman(ctx))
 	if body != nil {
 		panic("unexpected body")
@@ -91,10 +99,12 @@ func errorToCode(err error) int {
 	if errors.As(err, &jsonErr) {
 		return http.StatusBadRequest
 	}
+
 	var httpErr HttpError
 	if errors.As(err, &httpErr) {
 		return httpErr.HttpCode()
 	}
+
 	return http.StatusInternalServerError
 }
 
@@ -103,7 +113,12 @@ func (h *JsonTransport) EncodeError(ctx context.Context, w http.ResponseWriter, 
 		return h.ErrorEncoder(ctx, w, err)
 	}
 
+	return h.RawEncodeError(ctx, w, err)
+}
+
+func (h *JsonTransport) RawEncodeError(ctx context.Context, w http.ResponseWriter, err error) error {
 	code := errorToCode(err)
+
 	return h.jsonError(w, hasHuman(ctx), code, err)
 }
 
@@ -112,6 +127,10 @@ func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string
 		return h.RequestEncoder(ctx, method, urlStr, req)
 	}
 
+	return h.RawEncodeRequest(ctx, method, urlStr, req)
+}
+
+func (h *JsonTransport) RawEncodeRequest(ctx context.Context, method, urlStr string, req interface{}) (*http.Request, error) {
 	request, err := http.NewRequestWithContext(ctx, method, urlStr, nil)
 	if err != nil {
 		return nil, err
@@ -153,6 +172,10 @@ func (h *JsonTransport) DecodeResponse(ctx context.Context, res *http.Response, 
 		return h.ResponseDecoder(ctx, res, response)
 	}
 
+	return h.RawDecodeResponse(ctx, res, response)
+}
+
+func (h *JsonTransport) RawDecodeResponse(ctx context.Context, res *http.Response, response interface{}) error {
 	if err := readQueryHeaderCookie(response, res.Body, nil, nil, res.Header, res.StatusCode); err != nil {
 		return err
 	}
@@ -165,6 +188,10 @@ func (h *JsonTransport) DecodeError(ctx context.Context, res *http.Response) err
 		return h.ErrorDecoder(ctx, res)
 	}
 
+	return h.RawDecodeError(ctx, res)
+}
+
+func (h *JsonTransport) RawDecodeError(ctx context.Context, res *http.Response) error {
 	buf, err := io.ReadAll(res.Body)
 	if err != nil {
 		return err
