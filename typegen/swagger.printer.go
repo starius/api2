@@ -31,7 +31,7 @@ func typeToSwagger(t reflect.Type, swaggerType *spec.SchemaRef, getTypeName Type
 		return typeToSwagger(t, swaggerType, getTypeName)
 	case k == reflect.Struct:
 		if isDate(t) {
-			swaggerType.Value.Type = "string"
+			swaggerType.Value.Type = &spec.Types{"string"}
 			swaggerType.Value.Format = "date-time"
 			return swaggerType
 		}
@@ -43,19 +43,19 @@ func typeToSwagger(t reflect.Type, swaggerType *spec.SchemaRef, getTypeName Type
 		swaggerType.Ref = stringRef
 		return swaggerType
 	case isNumber(k):
-		swaggerType.Value.Type = "number"
+		swaggerType.Value.Type = &spec.Types{"number"}
 		return swaggerType
 	case k == reflect.String && isEnum(t):
 		swaggerType.Ref = RefSchemaPrefix + getTypeName(t)
 		return swaggerType
 	case k == reflect.String:
-		swaggerType.Value.Type = "string"
+		swaggerType.Value.Type = &spec.Types{"string"}
 		return swaggerType
 	case k == reflect.Bool:
-		swaggerType.Value.Type = "boolean"
+		swaggerType.Value.Type = &spec.Types{"boolean"}
 		return swaggerType
 	case k == reflect.Slice || k == reflect.Array:
-		swaggerType.Value.Type = "array"
+		swaggerType.Value.Type = &spec.Types{"array"}
 		props := &spec.SchemaRef{}
 		swaggerType.Value.Items = typeToSwagger(t.Elem(), props, getTypeName)
 		return swaggerType
@@ -63,7 +63,7 @@ func typeToSwagger(t reflect.Type, swaggerType *spec.SchemaRef, getTypeName Type
 		swaggerType.Value.AdditionalProperties = spec.AdditionalProperties{
 			Schema: typeToSwagger(t.Elem(), &spec.SchemaRef{}, getTypeName),
 		}
-		swaggerType.Value.Type = "object"
+		swaggerType.Value.Type = &spec.Types{"object"}
 		return swaggerType
 	}
 	return swaggerType
@@ -84,7 +84,7 @@ func GenerateOpenApi(p *Parser, s IType) spec.Schema {
 		if enumType != "string" {
 			enumType = "number"
 		}
-		t.Type = enumType
+		t.Type = &spec.Types{enumType}
 		t.WithEnum(convertedValues...)
 		return t
 	case *RecordDef:
@@ -97,7 +97,7 @@ func GenerateOpenApi(p *Parser, s IType) spec.Schema {
 			t.AllOf = append(t.OneOf, types...)
 			t.Properties = map[string]*spec.SchemaRef{}
 		}
-		propertiesTypes.Type = "object"
+		propertiesTypes.Type = &spec.Types{"object"}
 		for _, field := range v.Fields {
 			scm := spec.NewSchemaRef("", spec.NewSchema())
 			if field.Type == nil {

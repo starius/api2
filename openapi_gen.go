@@ -34,7 +34,7 @@ func GenerateOpenApiSpec(options *TypesGenConfig) {
 		Info: &spec.Info{
 			Version: "3.0.0",
 		},
-		Paths: spec.Paths{},
+		Paths: spec.NewPaths(),
 		Components: &spec.Components{
 			RequestBodies: spec.RequestBodies{},
 		},
@@ -115,7 +115,7 @@ OUTER:
 		}
 		if p == nil {
 			pi := &spec.PathItem{}
-			swagger.Paths[r.Path] = pi
+			swagger.Paths.Set(r.Path, pi)
 			p = pi
 		}
 		op.Tags = append(op.Tags, r.FnInfo.PkgName)
