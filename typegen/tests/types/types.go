@@ -60,6 +60,12 @@ type M struct {
 	Username string `json:"Username2"` // field doc
 }
 
+// WithTsIgnoredField has a field excluded from TypeScript but present on the wire.
+type WithTsIgnoredField struct {
+	Name     string `json:"name"`
+	Internal string `json:"internal" ts:"-"`
+}
+
 // user
 type User struct {
 	M

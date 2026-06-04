@@ -154,7 +154,14 @@ func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier, opts ...Ts
 		}).Parse(RecordTemplate)
 		panicIf(err)
 		w := &bytes.Buffer{}
-		err = tmpl.Execute(w, r)
+		visible := *r
+		visible.Fields = make([]*RecordField, 0, len(r.Fields))
+		for _, f := range r.Fields {
+			if f.Tag.State != TsIgnored {
+				visible.Fields = append(visible.Fields, f)
+			}
+		}
+		err = tmpl.Execute(w, &visible)
 		panicIf(err)
 		return w.String()
 	}
