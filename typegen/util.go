@@ -90,8 +90,11 @@ func ParseStructTag(structTag reflect.StructTag) (*ParseResult, error) {
 		}
 		if result.FieldName == "" {
 			result.FieldName = headerTagVal
-			// Set header as optional in case you want to set it in implicit way.
-			result.State = Optional
+			// Set header as optional in case you want to set it in implicit way,
+			// but don't override TsIgnored state.
+			if result.State != TsIgnored {
+				result.State = Optional
+			}
 		}
 		if result.FieldName == "" {
 			result.FieldName = queryTagVal
