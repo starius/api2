@@ -31,8 +31,11 @@ type TypeDef struct {
 
 type RecordDef struct {
 	BaseType
-	Fields   []*RecordField
-	Embedded []reflect.Type
+	Fields []*RecordField
+	// EmbeddedFields keeps tag state for embedded fields so ts:"-" embeds can
+	// stay in schema output without leaking into generated TypeScript.
+	EmbeddedFields []*RecordField
+	Embedded       []reflect.Type
 }
 
 type EnumDef struct {

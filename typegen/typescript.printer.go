@@ -88,6 +88,92 @@ func EnumsWithPrefix(value bool) TsTypesOption {
 	}
 }
 
+func isTsIgnoredField(field *RecordField) bool {
+	return field != nil && field.Tag != nil && field.Tag.State == TsIgnored
+}
+
+func tsVisibleFields(r *RecordDef) []*RecordField {
+	fields := make([]*RecordField, 0, len(r.Fields))
+	for _, f := range r.Fields {
+		if !isTsIgnoredField(f) {
+			fields = append(fields, f)
+		}
+	}
+	return fields
+}
+
+func tsVisibleEmbedded(r *RecordDef) []reflect.Type {
+	if len(r.EmbeddedFields) != len(r.Embedded) {
+		return r.Embedded
+	}
+	embedded := make([]reflect.Type, 0, len(r.EmbeddedFields))
+	for _, f := range r.EmbeddedFields {
+		if !isTsIgnoredField(f) && f.Type != nil {
+			embedded = append(embedded, f.Type)
+		}
+	}
+	return embedded
+}
+
+func tsVisibleTypes(parser *Parser) map[reflect.Type]bool {
+	visible := make(map[reflect.Type]bool)
+	if len(parser.rawTypes) == 0 {
+		for _, t := range parser.visitOrder {
+			visible[t] = true
+		}
+		return visible
+	}
+
+	var markRef func(t reflect.Type)
+	var markVisited func(t reflect.Type)
+
+	markVisited = func(t reflect.Type) {
+		t = indirect(t)
+		if visible[t] {
+			return
+		}
+		visited := parser.GetVisited(t)
+		if visited == nil {
+			return
+		}
+		visible[t] = true
+
+		switch v := visited.(type) {
+		case *RecordDef:
+			for _, embedded := range tsVisibleEmbedded(v) {
+				markRef(embedded)
+			}
+			for _, field := range tsVisibleFields(v) {
+				markRef(field.Type)
+			}
+		case *TypeDef:
+			markRef(v.T)
+		}
+	}
+
+	markRef = func(t reflect.Type) {
+		if t == nil {
+			return
+		}
+		t = indirect(t)
+		markVisited(t)
+		switch t.Kind() {
+		case reflect.Slice, reflect.Array:
+			markRef(t.Elem())
+		case reflect.Map:
+			markRef(t.Key())
+			markRef(t.Elem())
+		}
+	}
+
+	// ts:"-" fields remain in parser state for OpenAPI, so TypeScript needs a
+	// reachable set that follows only TS-visible fields from the requested roots.
+	for _, t := range parser.rawTypes {
+		markRef(t)
+	}
+	return visible
+}
+
 func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier, opts ...TsTypesOption) {
 	var config TsTypesConfig
 	for _, opt := range opts {
@@ -107,8 +193,12 @@ func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier, opts ...Ts
 		stringify = stringifyCustom
 	}
 	output := make(map[string][]IType)
+	visibleTypes := tsVisibleTypes(parser)
 
 	for _, m := range parser.visitOrder {
+		if !visibleTypes[m] {
+			continue
+		}
 		pkg := parser.seen[m].GetPackage()
 		output[path.Base(pkg)] = append(output[path.Base(pkg)], parser.seen[m])
 	}
@@ -155,12 +245,8 @@ func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier, opts ...Ts
 		panicIf(err)
 		w := &bytes.Buffer{}
 		visible := *r
-		visible.Fields = make([]*RecordField, 0, len(r.Fields))
-		for _, f := range r.Fields {
-			if f.Tag.State != TsIgnored {
-				visible.Fields = append(visible.Fields, f)
-			}
-		}
+		visible.Fields = tsVisibleFields(r)
+		visible.Embedded = tsVisibleEmbedded(r)
 		err = tmpl.Execute(w, &visible)
 		panicIf(err)
 		return w.String()

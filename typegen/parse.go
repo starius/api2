@@ -156,6 +156,7 @@ func (this *Parser) visitType(t reflect.Type) {
 				this.GetVisited(structFieldType).SetName(record.Name+"_"+field.Key, unrefT.PkgPath())
 			}
 			if structField.Anonymous && k == reflect.Struct {
+				record.EmbeddedFields = append(record.EmbeddedFields, field)
 				record.Embedded = append(record.Embedded, structFieldType)
 				continue
 			}
