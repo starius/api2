@@ -109,6 +109,9 @@ func PrintTsTypes(parser *Parser, w io.Writer, stringify Stringifier, opts ...Ts
 	output := make(map[string][]IType)
 
 	for _, m := range parser.visitOrder {
+		if !parser.IsTsVisible(m) {
+			continue
+		}
 		pkg := parser.seen[m].GetPackage()
 		output[path.Base(pkg)] = append(output[path.Base(pkg)], parser.seen[m])
 	}
