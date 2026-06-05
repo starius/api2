@@ -3,6 +3,8 @@ package typegen
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseStructTag_tsIgnored(t *testing.T) {
@@ -34,6 +36,37 @@ func TestParseStructTag_tsIgnoredWithHeader(t *testing.T) {
 	if result.FieldName != "X-Request-Id" {
 		t.Errorf("expected FieldName X-Request-Id, got %q", result.FieldName)
 	}
+}
+
+func TestParseStructTag_tsIgnoredWithJsonOmitEmpty(t *testing.T) {
+	type testStruct struct {
+		Hidden string `json:"hidden,omitempty" ts:"-"`
+	}
+	field, _ := reflect.TypeOf(testStruct{}).FieldByName("Hidden")
+	result, err := ParseStructTag(field.Tag)
+	require.NoError(t, err)
+	require.Equal(t, TsIgnored, result.State)
+	require.Equal(t, "hidden", result.FieldName)
+}
+
+func TestParseStructTag_tsIgnoredWithTsOption(t *testing.T) {
+	type testStruct struct {
+		Hidden string `json:"hidden" ts:"-,optional"`
+	}
+	field, _ := reflect.TypeOf(testStruct{}).FieldByName("Hidden")
+	result, err := ParseStructTag(field.Tag)
+	require.NoError(t, err)
+	require.Equal(t, TsIgnored, result.State)
+}
+
+func TestParseStructTag_tsIgnoredWithoutWireName(t *testing.T) {
+	type testStruct struct {
+		Hidden string `ts:"-"`
+	}
+	field, _ := reflect.TypeOf(testStruct{}).FieldByName("Hidden")
+	result, err := ParseStructTag(field.Tag)
+	require.NoError(t, err)
+	require.Equal(t, TsIgnored, result.State)
 }
 
 func TestParseStructTag_jsonIgnored(t *testing.T) {
