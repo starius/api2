@@ -191,7 +191,7 @@ func serializeTypeInfo(t *preparedType) ([]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			if tag.State == typegen.Ignored || tag.State == typegen.NoInfo {
+			if tag.State == typegen.Ignored || tag.State == typegen.TsIgnored || tag.State == typegen.NoInfo {
 				continue
 			}
 			name := ft.Name
