@@ -107,7 +107,7 @@ func ParseStructTag(structTag reflect.StructTag) (*ParseResult, error) {
 		case "optional":
 			result.State = Optional
 		}
-		if jsonTagOption == "omitempty" {
+		if jsonTagOption == "omitempty" && result.State != TsIgnored {
 			result.State = Optional
 		}
 		if result.FieldName == "" {

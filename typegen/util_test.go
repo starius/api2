@@ -19,6 +19,20 @@ func TestParseStructTag_tsIgnored(t *testing.T) {
 	}
 }
 
+func TestParseStructTag_tsIgnoredWithOmitempty(t *testing.T) {
+	type testStruct struct {
+		LastModified string `json:"last_modified,omitempty" ts:"-"`
+	}
+	field, _ := reflect.TypeOf(testStruct{}).FieldByName("LastModified")
+	result, err := ParseStructTag(field.Tag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.State != TsIgnored {
+		t.Errorf("expected TsIgnored, got %v", result.State)
+	}
+}
+
 func TestParseStructTag_tsIgnoredWithHeader(t *testing.T) {
 	type testStruct struct {
 		RequestID string `header:"X-Request-Id" ts:"-"`
