@@ -99,19 +99,21 @@ func ParseStructTag(structTag reflect.StructTag) (*ParseResult, error) {
 		if result.FieldName == "" {
 			result.FieldName = queryTagVal
 		}
-		switch tsTagOptions {
-		case "no-null":
-			result.State = NotNull
-		case "null":
-			result.State = Null
-		case "optional":
-			result.State = Optional
-		}
-		if jsonTagOption == "omitempty" {
-			result.State = Optional
-		}
-		if result.FieldName == "" {
-			result.State = NoInfo
+		if result.State != TsIgnored {
+			switch tsTagOptions {
+			case "no-null":
+				result.State = NotNull
+			case "null":
+				result.State = Null
+			case "optional":
+				result.State = Optional
+			}
+			if jsonTagOption == "omitempty" {
+				result.State = Optional
+			}
+			if result.FieldName == "" {
+				result.State = NoInfo
+			}
 		}
 	}
 	return result, nil
