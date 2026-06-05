@@ -66,6 +66,24 @@ type WithTsIgnoredField struct {
 	Internal string `json:"internal" ts:"-"`
 }
 
+type TsHiddenPayload struct {
+	Secret string `json:"secret"`
+}
+
+type WithTsIgnoredObject struct {
+	Name     string          `json:"name"`
+	Internal TsHiddenPayload `json:"internal" ts:"-"`
+}
+
+type TsHiddenEmbedded struct {
+	Secret string `json:"secret"`
+}
+
+type WithTsIgnoredEmbedded struct {
+	Name             string `json:"name"`
+	TsHiddenEmbedded `ts:"-"`
+}
+
 // user
 type User struct {
 	M
