@@ -164,13 +164,20 @@ func (this *Parser) visitType(t reflect.Type) {
 		}
 		record := &RecordDef{}
 		record.Name = unrefT.Name()
-		var astFields []*ast.Field
+		var astFieldByName map[string]*ast.Field
 		// if we parse anonymous struct doc is not available
 		if record.Name != "" {
-			recordDoc, f := getFieldsAst(unrefT)
+			recordDoc, astFields := getFieldsAst(unrefT)
 			if recordDoc != nil {
-				astFields = f
 				record.Doc = FormatDoc(recordDoc.Doc)
+				// go/doc excludes unexported fields, so use name-based lookup
+				// to avoid index mismatch with reflect (e.g. protobuf state fields)
+				astFieldByName = make(map[string]*ast.Field, len(astFields))
+				for _, f := range astFields {
+					for _, name := range f.Names {
+						astFieldByName[name.Name] = f
+					}
+				}
 			}
 		}
 		record.T = unrefT
@@ -185,8 +192,8 @@ func (this *Parser) visitType(t reflect.Type) {
 				Type:  indirect(structFieldType),
 				IsRef: structFieldType != structField.Type,
 			}
-			if record.Name != "" && astFields != nil && len(astFields) > i {
-				field.Doc = FormatDoc(astFields[i].Comment.Text())
+			if af, ok := astFieldByName[structField.Name]; ok {
+				field.Doc = FormatDoc(af.Comment.Text())
 			}
 			isEmbed := structField.Anonymous && k == reflect.Struct
 			parseResult, err := ParseStructTag(structField.Tag)
