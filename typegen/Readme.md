@@ -52,4 +52,6 @@ tsTag[0] = "string"|"date"|"-"
 tsTag[1] = "optional"|"no-null"|"null"
 ```
 
+Use `ts:"-"` for fields that remain part of the wire/OpenAPI schema but should be omitted from generated TypeScript types.
+
 see field.go for more info
