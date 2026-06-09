@@ -8,9 +8,11 @@ import (
 )
 
 type Parser struct {
-	rawTypes   []reflect.Type
-	seen       map[reflect.Type]IType
-	visitOrder []reflect.Type
+	rawTypes    []reflect.Type
+	seen        map[reflect.Type]IType
+	tsVisible   map[reflect.Type]bool
+	visitOrder  []reflect.Type
+	inTsIgnored bool
 	// You can skip field or replace it with another type
 	CustomParse func(arg reflect.Type) (IType, bool)
 }
@@ -18,6 +20,7 @@ type Parser struct {
 func NewFromTypes(types ...interface{}) *Parser {
 	p := &Parser{}
 	p.seen = make(map[reflect.Type]IType)
+	p.tsVisible = make(map[reflect.Type]bool)
 	for _, rawType := range types {
 		p.rawTypes = append(p.rawTypes, parseType(rawType))
 	}
@@ -29,6 +32,7 @@ func NewFromTypes(types ...interface{}) *Parser {
 func NewParser(types ...RawType) *Parser {
 	p := &Parser{}
 	p.seen = make(map[reflect.Type]IType)
+	p.tsVisible = make(map[reflect.Type]bool)
 	return p
 }
 
@@ -76,6 +80,42 @@ func (this *Parser) isVisited(t reflect.Type) bool {
 	return this.seen[t] != nil
 }
 
+func (this *Parser) IsTsVisible(t reflect.Type) bool {
+	return this.tsVisible[indirect(t)]
+}
+
+// propagateTsVisible marks t and all types reachable from it (excluding
+// TsIgnored-field subtrees) as TypeScript-visible.
+func (this *Parser) propagateTsVisible(t reflect.Type) {
+	if this.tsVisible[t] {
+		return
+	}
+	this.tsVisible[t] = true
+	itype := this.seen[t]
+	switch v := itype.(type) {
+	case *RecordDef:
+		for _, f := range v.Fields {
+			if f.Tag != nil && f.Tag.State == TsIgnored {
+				continue
+			}
+			if f.Type != nil {
+				this.propagateTsVisible(indirect(f.Type))
+			}
+		}
+		for _, e := range v.Embedded {
+			this.propagateTsVisible(indirect(e))
+		}
+	case *TypeDef:
+		elem := v.T
+		if elem.Kind() == reflect.Slice || elem.Kind() == reflect.Array {
+			this.propagateTsVisible(indirect(elem.Elem()))
+		} else if elem.Kind() == reflect.Map {
+			this.propagateTsVisible(indirect(elem.Key()))
+			this.propagateTsVisible(indirect(elem.Elem()))
+		}
+	}
+}
+
 var re = regexp.MustCompile(`[\n\t\r]+`)
 
 func FormatDoc(str string) string {
@@ -94,16 +134,27 @@ func (this *Parser) visitType(t reflect.Type) {
 	unrefT := indirect(t)
 	k := unrefT.Kind()
 	if this.isVisited(unrefT) {
+		// If we now need to promote this type to tsVisible, propagate.
+		if !this.inTsIgnored && !this.tsVisible[unrefT] {
+			this.propagateTsVisible(unrefT)
+		}
 		return
 	}
 	if this.CustomParse != nil {
 		v, skip := this.CustomParse(unrefT)
 		if !skip && v != nil {
 			this.markVisit(unrefT, v)
+			if !this.inTsIgnored {
+				this.tsVisible[unrefT] = true
+			}
 			return
 		} else if skip {
 			return
 		}
+	}
+
+	if !this.inTsIgnored {
+		this.tsVisible[unrefT] = true
 	}
 
 	switch {
@@ -113,13 +164,20 @@ func (this *Parser) visitType(t reflect.Type) {
 		}
 		record := &RecordDef{}
 		record.Name = unrefT.Name()
-		var astFields []*ast.Field
+		var astFieldByName map[string]*ast.Field
 		// if we parse anonymous struct doc is not available
 		if record.Name != "" {
-			recordDoc, f := getFieldsAst(unrefT)
+			recordDoc, astFields := getFieldsAst(unrefT)
 			if recordDoc != nil {
-				astFields = f
 				record.Doc = FormatDoc(recordDoc.Doc)
+				// go/doc excludes unexported fields, so use name-based lookup
+				// to avoid index mismatch with reflect (e.g. protobuf state fields)
+				astFieldByName = make(map[string]*ast.Field, len(astFields))
+				for _, f := range astFields {
+					for _, name := range f.Names {
+						astFieldByName[name.Name] = f
+					}
+				}
 			}
 		}
 		record.T = unrefT
@@ -134,8 +192,8 @@ func (this *Parser) visitType(t reflect.Type) {
 				Type:  indirect(structFieldType),
 				IsRef: structFieldType != structField.Type,
 			}
-			if record.Name != "" && astFields != nil && len(astFields) > i {
-				field.Doc = FormatDoc(astFields[i].Comment.Text())
+			if af, ok := astFieldByName[structField.Name]; ok {
+				field.Doc = FormatDoc(af.Comment.Text())
 			}
 			isEmbed := structField.Anonymous && k == reflect.Struct
 			parseResult, err := ParseStructTag(structField.Tag)
@@ -147,6 +205,23 @@ func (this *Parser) visitType(t reflect.Type) {
 			if parseResult.FieldType != "" {
 				// we should not parse field type if we set it manually
 				field.Type = nil
+				record.Fields = append(record.Fields, field)
+				continue
+			}
+			if parseResult.State == TsIgnored {
+				// Visit for Swagger (needed for $ref resolution) but not for TypeScript.
+				prev := this.inTsIgnored
+				this.inTsIgnored = true
+				this.visitType(structFieldType)
+				this.inTsIgnored = prev
+				// if struct type has no name it means it's anonymous so we set field value afterwards
+				if structFieldType.Name() == "" && structFieldType.Kind() == reflect.Struct {
+					this.GetVisited(structFieldType).SetName(record.Name+"_"+field.Key, unrefT.PkgPath())
+				}
+				if structField.Anonymous && k == reflect.Struct {
+					record.Embedded = append(record.Embedded, structFieldType)
+					continue
+				}
 				record.Fields = append(record.Fields, field)
 				continue
 			}

@@ -60,6 +60,32 @@ type M struct {
 	Username string `json:"Username2"` // field doc
 }
 
+// InternalStatus is a type used only inside ts-ignored fields.
+type InternalStatus string
+
+const (
+	InternalStatusActive   InternalStatus = "active"
+	InternalStatusInactive InternalStatus = "inactive"
+)
+
+// InternalDetail is a struct used only inside ts-ignored fields.
+type InternalDetail struct {
+	Status InternalStatus `json:"status"`
+}
+
+// WithTsIgnoredField has a field excluded from TypeScript but present on the wire.
+type WithTsIgnoredField struct {
+	Name     string `json:"name"`
+	Internal string `json:"internal" ts:"-"`
+}
+
+// WithTsIgnoredComplexField has a ts-ignored field whose type has subtypes.
+// Those subtypes should NOT appear in TypeScript output.
+type WithTsIgnoredComplexField struct {
+	Name   string         `json:"name"`
+	Detail *InternalDetail `json:"detail,omitempty" ts:"-"`
+}
+
 // user
 type User struct {
 	M

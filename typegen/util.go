@@ -44,6 +44,7 @@ type PropertyState int
 const (
 	Auto PropertyState = iota
 	Ignored
+	TsIgnored // ts:"-": field is on the wire but excluded from TypeScript output only
 	Optional
 	Null
 	NotNull
@@ -76,17 +77,24 @@ func ParseStructTag(structTag reflect.StructTag) (*ParseResult, error) {
 		tsTagVal, tsTagOptions    = parseJsonLikeTag(structTag.Get("ts"))
 	)
 
-	if jsonTagVal == "-" || tsTagVal == "-" {
+	if jsonTagVal == "-" {
 		result.State = Ignored
+	} else if tsTagVal == "-" {
+		result.State = TsIgnored
 	}
 
 	if result.State != Ignored {
 		result.FieldName = jsonTagVal
-		result.FieldType = tsTagVal
+		if tsTagVal != "-" {
+			result.FieldType = tsTagVal
+		}
 		if result.FieldName == "" {
 			result.FieldName = headerTagVal
-			// Set header as optional in case you want to set it in implicit way.
-			result.State = Optional
+			// Set header as optional in case you want to set it in implicit way,
+			// but don't override TsIgnored state.
+			if result.State != TsIgnored {
+				result.State = Optional
+			}
 		}
 		if result.FieldName == "" {
 			result.FieldName = queryTagVal
@@ -99,7 +107,7 @@ func ParseStructTag(structTag reflect.StructTag) (*ParseResult, error) {
 		case "optional":
 			result.State = Optional
 		}
-		if jsonTagOption == "omitempty" {
+		if jsonTagOption == "omitempty" && result.State != TsIgnored {
 			result.State = Optional
 		}
 		if result.FieldName == "" {
