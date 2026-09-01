@@ -73,6 +73,19 @@ type InternalDetail struct {
 	Status InternalStatus `json:"status"`
 }
 
+// MultilineEnum has a multi-line godoc comment.
+// The second line must not land uncommented in gen.ts.
+type MultilineEnum string
+
+const (
+	MultilineEnumA MultilineEnum = "a"
+	MultilineEnumB MultilineEnum = "b"
+)
+
+// MultilineArray has a multi-line godoc comment.
+// The second line must not land uncommented in gen.ts.
+type MultilineArray []int
+
 // WithTsIgnoredField has a field excluded from TypeScript but present on the wire.
 type WithTsIgnoredField struct {
 	Name     string `json:"name"`

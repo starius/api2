@@ -246,7 +246,7 @@ func (this *Parser) visitType(t reflect.Type) {
 			b := &TypeDef{}
 			b.Name = unrefT.Name()
 			b.T = unrefT
-			b.Doc = getDoc(unrefT).Doc
+			b.Doc = FormatDoc(getDoc(unrefT).Doc)
 			this.markVisit(unrefT, b)
 		}
 	case (isNumber(k) || k == reflect.String) && isEnum(unrefT):
@@ -255,7 +255,7 @@ func (this *Parser) visitType(t reflect.Type) {
 			this.markVisit(unrefT, enum)
 			enum.T = unrefT
 			if getDoc(unrefT) != nil {
-				enum.Doc = getDoc(unrefT).Doc
+				enum.Doc = FormatDoc(getDoc(unrefT).Doc)
 			}
 			enum.Values = getTypedEnumValues(t)
 			enum.Name = unrefT.Name()
